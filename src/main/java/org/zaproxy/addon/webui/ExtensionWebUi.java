@@ -17,7 +17,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.github.youruser.zap.javaexample;
+package org.zaproxy.addon.webui;
 
 import java.awt.CardLayout;
 import java.awt.Font;
@@ -35,22 +35,12 @@ import org.parosproxy.paros.extension.ExtensionHook;
 import org.zaproxy.zap.utils.FontUtils;
 import org.zaproxy.zap.view.ZapMenuItem;
 
-/**
- * An example ZAP extension which adds a top level menu item, a pop up menu item and a status panel.
- *
- * <p>{@link ExtensionAdaptor} classes are the main entry point for adding/loading functionalities
- * provided by the add-ons.
- *
- * @see #hook(ExtensionHook)
- */
-public class ExtensionJavaExample extends ExtensionAdaptor {
+public class ExtensionWebUi extends ExtensionAdaptor {
 
     // The name is public so that other extensions can access it
-    public static final String NAME = "ExtensionJavaExample";
+    public static final String NAME = "ExtensionWebUi";
 
-    // The i18n prefix, by default the package name - defined in one place to make it easier
-    // to copy and change this example
-    protected static final String PREFIX = "javaexample";
+    protected static final String PREFIX = "webui";
 
     /**
      * Relative path (from add-on package) to load add-on resources.
@@ -59,7 +49,7 @@ public class ExtensionJavaExample extends ExtensionAdaptor {
      */
     private static final String RESOURCES = "resources";
 
-    private static final String EXAMPLE_FILE = "javaexample/ExampleFile.txt";
+    private static final String EXAMPLE_FILE = "webui/ExampleFile.txt";
 
     private ZapMenuItem menuExample;
     private RightClickMsgMenu popupMsgMenuExample;
@@ -67,9 +57,9 @@ public class ExtensionJavaExample extends ExtensionAdaptor {
 
     private SimpleExampleAPI api;
 
-    private static final Logger LOGGER = LogManager.getLogger(ExtensionJavaExample.class);
+    private static final Logger LOGGER = LogManager.getLogger(ExtensionWebUi.class);
 
-    public ExtensionJavaExample() {
+    public ExtensionWebUi() {
         super(NAME);
     }
 
@@ -112,7 +102,7 @@ public class ExtensionJavaExample extends ExtensionAdaptor {
             statusPanel.setLayout(new CardLayout());
             statusPanel.setName(Constant.messages.getString(PREFIX + ".panel.title"));
             statusPanel.setIcon(
-                    new ImageIcon(ExtensionJavaExample.class.getResource(RESOURCES + "/cake.png")));
+                    new ImageIcon(ExtensionWebUi.class.getResource(RESOURCES + "/cake.png")));
             JTextPane pane = new JTextPane();
             pane.setEditable(false);
             // Obtain (and set) a font with the size defined in the options
@@ -154,7 +144,7 @@ public class ExtensionJavaExample extends ExtensionAdaptor {
                 getView()
                         .showWarningDialog(
                                 Constant.messages.getString(
-                                        ExtensionJavaExample.PREFIX + ".error.nofile", path));
+                                        ExtensionWebUi.PREFIX + ".error.nofile", path));
                 return;
             }
             // Quick way to read a small text file

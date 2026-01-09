@@ -17,7 +17,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.github.youruser.zap.javaexample;
+package org.zaproxy.addon.webui;
 
 import java.util.List;
 import java.util.Random;
