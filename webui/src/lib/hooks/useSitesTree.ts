@@ -47,7 +47,8 @@ function transformNode(raw: RawSiteNode, parentPath: string = ""): SiteTreeNode 
       // If the node name matches the host pattern, it's a host node
       if (raw.node.includes("://") || raw.node === url.host) {
         type = "host"
-        name = url.host
+        // Include protocol to distinguish http:// vs https://
+        name = `${url.protocol}//${url.host}`
       } else if (hasChildren) {
         type = "folder"
       }
@@ -59,11 +60,21 @@ function transformNode(raw: RawSiteNode, parentPath: string = ""): SiteTreeNode 
     type = "folder"
   }
 
+  // Strip method prefix from name (e.g., "GET:resource" -> "resource")
+  // The method is already available in raw.method for endpoints
+  if (name.includes(":") && raw.method) {
+    const methodPrefix = `${raw.method}:`
+    if (name.startsWith(methodPrefix)) {
+      name = name.slice(methodPrefix.length)
+    }
+  }
+
   const node: SiteTreeNode = {
     id,
     name,
     type,
-    method: raw.method,
+    // Only include method for leaf nodes (endpoints)
+    method: type === "endpoint" ? raw.method : undefined,
     statusCode: raw.statusCode,
     responseSize: raw.responseLength,
     messageId: raw.messageId?.toString(),
@@ -102,8 +113,10 @@ function insertNodeIntoTree(
     return [...tree, transformedNode]
   }
 
-  // Find the host node - match by name (example.com) or by checking if URL matches
+  // Find the host node - match by name (protocol://host) or URL
   let hostNode = tree.find((n) => {
+    // Direct match on name (now includes protocol)
+    if (n.name === hostPart) return true
     // Try to match the host part of the URL
     try {
       const nodeUrl = n.url ? new URL(n.url) : null
@@ -113,15 +126,8 @@ function insertNodeIntoTree(
     } catch {
       // Ignore URL parsing errors
     }
-    // Also check if the node name matches the hostname
-    try {
-      const hostFromPath = new URL(hostPart).host
-      if (n.name === hostFromPath) return true
-    } catch {
-      // Ignore
-    }
     // Fallback: check by id
-    return n.id === hostPart || n.id.includes(hostPart)
+    return n.id === hostPart
   })
 
   if (!hostNode) {
@@ -131,24 +137,13 @@ function insertNodeIntoTree(
     if (pathSegments.length === 0) {
       return [...tree, transformedNode]
     }
-    // Otherwise create a host node
-    try {
-      const hostFromUrl = new URL(hostPart).host
-      hostNode = {
-        id: hostPart,
-        name: hostFromUrl,
-        type: "host" as const,
-        url: newNode.url,
-        children: [],
-      }
-    } catch {
-      hostNode = {
-        id: hostPart,
-        name: hostPart,
-        type: "host" as const,
-        url: newNode.url,
-        children: [],
-      }
+    // Otherwise create a host node - use hostPart (protocol://host) as name
+    hostNode = {
+      id: hostPart,
+      name: hostPart,
+      type: "host" as const,
+      url: newNode.url,
+      children: [],
     }
     tree = [...tree, hostNode]
   }

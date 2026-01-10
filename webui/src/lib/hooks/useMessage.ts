@@ -14,14 +14,17 @@ export interface Message {
   timestamp: string
 }
 
+interface MessageData {
+  id: string
+  requestHeader: string
+  requestBody: string
+  responseHeader: string
+  responseBody: string
+}
+
 interface MessageResponse {
-  message: Array<{
-    id: string
-    requestHeader: string
-    requestBody: string
-    responseHeader: string
-    responseBody: string
-  }>
+  // API can return message as either an array or a single object
+  message: MessageData | MessageData[]
 }
 
 export function useMessage(messageId: string | null) {
@@ -34,11 +37,19 @@ export function useMessage(messageId: string | null) {
         id: messageId,
       })
 
-      if (!response.message || response.message.length === 0) {
+      if (!response.message) {
         throw new Error("Message not found")
       }
 
-      const msg = response.message[0]
+      // Handle both array and single object response formats
+      const msg = Array.isArray(response.message)
+        ? response.message[0]
+        : response.message
+
+      if (!msg) {
+        throw new Error("Message not found")
+      }
+
       const parsed = parseMessage(msg)
       return parsed
     },
@@ -58,14 +69,21 @@ function parseMessage(msg: {
   const requestLine = requestLines[0]
   const requestMatch = requestLine.match(/^(\w+)\s+(\S+)\s+HTTP/)
   const method = requestMatch ? requestMatch[1] : "GET"
-  const path = requestMatch ? requestMatch[2] : "/"
+  const pathOrUrl = requestMatch ? requestMatch[2] : "/"
 
-  // Get Host header to build full URL
-  const hostHeader = requestLines.find((line) =>
-    line.toLowerCase().startsWith("host:")
-  )
-  const host = hostHeader ? hostHeader.substring(5).trim() : "unknown"
-  const url = `https://${host}${path}`
+  // Determine the full URL - it might already be absolute or just a path
+  let url: string
+  if (pathOrUrl.startsWith("http://") || pathOrUrl.startsWith("https://")) {
+    // Already a full URL
+    url = pathOrUrl
+  } else {
+    // Just a path, need to get host header to build full URL
+    const hostHeader = requestLines.find((line) =>
+      line.toLowerCase().startsWith("host:")
+    )
+    const host = hostHeader ? hostHeader.substring(5).trim() : "unknown"
+    url = `https://${host}${pathOrUrl}`
+  }
 
   // Parse response header to get status code
   const responseLines = msg.responseHeader.split(/\r?\n/)
