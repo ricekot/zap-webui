@@ -1,8 +1,18 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 
+// Activity bar items for the sidebar
+export type SidebarActivity = "sites" | null
+export type BottomPanelActivity = "output" | null
+
 interface UIState {
-  // Panel visibility
+  // Activity bar state
+  activeSidebarItem: SidebarActivity
+  activeBottomItem: BottomPanelActivity
+  setActiveSidebarItem: (item: SidebarActivity) => void
+  setActiveBottomItem: (item: BottomPanelActivity) => void
+
+  // Panel visibility (derived from activity items, but kept for compatibility)
   leftSidebarOpen: boolean
   bottomPanelOpen: boolean
   rightSidebarOpen: boolean
@@ -31,15 +41,31 @@ interface UIState {
 
 export const useUIStore = create<UIState>()(
   persist(
-    (set) => ({
-      // Panel visibility - default states
-      leftSidebarOpen: true,
-      bottomPanelOpen: true,
+    (set, get) => ({
+      // Activity bar state
+      activeSidebarItem: "sites" as SidebarActivity,
+      activeBottomItem: "output" as BottomPanelActivity,
+      setActiveSidebarItem: (item) => set({ activeSidebarItem: item }),
+      setActiveBottomItem: (item) => set({ activeBottomItem: item }),
+
+      // Panel visibility - derived from activity items
+      get leftSidebarOpen() {
+        return get().activeSidebarItem !== null
+      },
+      get bottomPanelOpen() {
+        return get().activeBottomItem !== null
+      },
       rightSidebarOpen: false,
 
-      // Panel toggles
-      toggleLeftSidebar: () => set((state) => ({ leftSidebarOpen: !state.leftSidebarOpen })),
-      toggleBottomPanel: () => set((state) => ({ bottomPanelOpen: !state.bottomPanelOpen })),
+      // Panel toggles - now toggle via activity items
+      toggleLeftSidebar: () =>
+        set((state) => ({
+          activeSidebarItem: state.activeSidebarItem !== null ? null : "sites",
+        })),
+      toggleBottomPanel: () =>
+        set((state) => ({
+          activeBottomItem: state.activeBottomItem !== null ? null : "output",
+        })),
       toggleRightSidebar: () => set((state) => ({ rightSidebarOpen: !state.rightSidebarOpen })),
 
       // Active center tab - default to requester
@@ -61,8 +87,8 @@ export const useUIStore = create<UIState>()(
     {
       name: "zap-ui-storage",
       partialize: (state) => ({
-        leftSidebarOpen: state.leftSidebarOpen,
-        bottomPanelOpen: state.bottomPanelOpen,
+        activeSidebarItem: state.activeSidebarItem,
+        activeBottomItem: state.activeBottomItem,
         rightSidebarOpen: state.rightSidebarOpen,
         theme: state.theme,
       }),
