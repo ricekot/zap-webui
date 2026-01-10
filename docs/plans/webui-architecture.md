@@ -241,11 +241,11 @@ URL Pattern              → Action
 
 ### Phase 3: Core Frontend Infrastructure
 
-- [ ] Set up React Router with browser history routing
-- [ ] Create base layout (sidebar, header, content area)
-- [ ] Implement ZAP API client with TanStack Query
-- [ ] Set up Zustand store for UI state
-- [ ] Create WebSocket hook for real-time updates
+- [x] Set up React Router with browser history routing
+- [x] Create base layout (sidebar, header, content area)
+- [x] Implement ZAP API client with TanStack Query
+- [x] Set up Zustand store for UI state
+- [x] Create WebSocket hook for real-time updates
 
 ### Phase 4: Essential Views
 
