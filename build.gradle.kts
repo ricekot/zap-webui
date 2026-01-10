@@ -1,52 +1,77 @@
-import org.zaproxy.gradle.addon.AddOnStatus
-import org.zaproxy.gradle.addon.misc.ConvertMarkdownToHtml
+import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform
 
 plugins {
-    `java-library`
-    id("org.zaproxy.add-on") version "0.13.1"
+    base
     id("com.diffplug.spotless")
-    id("org.zaproxy.common")
 }
 
-description = "A template for a 3rd party ZAP Java add-on."
+val os: OperatingSystem = DefaultNativePlatform.getCurrentOperatingSystem()
 
-zapAddOn {
-    addOnId.set("addonjava")
-    addOnName.set("A Template Java Add-on")
-    zapVersion.set("2.16.0")
-    addOnStatus.set(AddOnStatus.ALPHA)
+val webUiBuildDir = layout.buildDirectory.dir("webui")
+val webUiBuildTasksGroup = "ZAP Web UI Build"
 
-    releaseLink.set("https://github.com/youruser/javaexample/compare/v@PREVIOUS_VERSION@...v@CURRENT_VERSION@")
-    unreleasedLink.set("https://github.com/youruser/javaexample/compare/v@CURRENT_VERSION@...HEAD")
+fun Exec.npmCommand(vararg args: String) {
+    workingDir = file("webui")
+    val npmArgs = listOf("npm") + args.toList()
+    if (os.isWindows) {
+        commandLine(listOf("cmd", "/c") + npmArgs)
+    } else {
+        commandLine(listOf("/bin/sh", "-c", npmArgs.joinToString(" ")))
+    }
+}
 
-    manifest {
-        author.set("ZAP Dev Team")
-        url.set("https://www.zaproxy.org/docs/desktop/addons/addonjava/")
-        repo.set("https://github.com/zaproxy/addon-java")
-        changesFile.set(tasks.named<ConvertMarkdownToHtml>("generateManifestChanges").flatMap { it.html })
+val installWebUiDependencies by tasks.registering(Exec::class) {
+    group = webUiBuildTasksGroup
+    description = "Installs npm dependencies for the web UI"
+    npmCommand("ci")
 
-        dependencies {
-            addOns {
-                register("commonlib") {
-                    version.set(">= 1.36.0 & < 2.0.0")
-                }
-            }
+    inputs.file("webui/package.json")
+    inputs.file("webui/package-lock.json")
+    outputs.dir("webui/node_modules")
+}
+
+val lintWebUi by tasks.registering(Exec::class) {
+    group = webUiBuildTasksGroup
+    description = "Runs ESLint on the web UI"
+    dependsOn(installWebUiDependencies)
+    npmCommand("run", "lint")
+}
+
+val buildWebUi by tasks.registering(Exec::class) {
+    group = webUiBuildTasksGroup
+    description = "Builds the web UI for production"
+    dependsOn(installWebUiDependencies)
+    npmCommand("run", "build")
+
+    inputs.dir("webui/src")
+    inputs.file("webui/index.html")
+    inputs.file("webui/vite.config.ts")
+    inputs.file("webui/tsconfig.json")
+    inputs.file("webui/tsconfig.app.json")
+    inputs.file("webui/tailwind.config.js")
+    inputs.file("webui/postcss.config.js")
+    outputs.dir("webui/dist")
+}
+
+val copyWebUiToAddon by tasks.registering(Copy::class) {
+    group = webUiBuildTasksGroup
+    description = "Copies the built web UI to the addon build directory"
+    dependsOn(buildWebUi)
+
+    from("webui/dist")
+    into(webUiBuildDir.map { it.dir("webui") })
+}
+
+tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) {
+    dependsOn(lintWebUi)
+}
+
+allprojects {
+    apply(plugin = "com.diffplug.spotless")
+
+    spotless {
+        kotlinGradle {
+            ktlint()
         }
     }
-}
-
-java {
-    val javaVersion = JavaVersion.VERSION_17
-    sourceCompatibility = javaVersion
-    targetCompatibility = javaVersion
-}
-
-spotless {
-    kotlinGradle {
-        ktlint()
-    }
-}
-
-dependencies {
-    compileOnly("org.zaproxy.addon:commonlib:1.36.0")
 }

@@ -1,5 +1,6 @@
 .gradle
 /build/
+/addon/build/
 
 # Ignore Gradle GUI config
 gradle-app.setting
@@ -23,3 +24,14 @@ gradle-app.setting
 *.project
 *.settings
 /bin
+/addon/bin
+
+# IntelliJ IDEA
+# -------------
+.idea/
+
+# Node.js / npm (webui)
+# ---------------------
+webui/node_modules/
+webui/dist/
+webui/.vite/

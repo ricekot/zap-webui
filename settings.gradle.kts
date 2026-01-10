@@ -3,4 +3,6 @@ plugins {
     id("com.diffplug.spotless") version "6.25.0" apply false
 }
 
-rootProject.name = "webui"
+rootProject.name = "zap-webui"
+
+include("addon")
