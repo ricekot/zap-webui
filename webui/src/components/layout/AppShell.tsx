@@ -33,9 +33,7 @@ export function AppShell() {
             orientation="vertical"
             id="content-vertical-layout"
             defaultLayout={
-              bottomPanelOpen
-                ? { "top-area": 70, "bottom-panel": 30 }
-                : { "top-area": 100 }
+              bottomPanelOpen ? { "top-area": 70, "bottom-panel": 30 } : { "top-area": 100 }
             }
           >
             {/* Top Area - Sidebar + Center */}
@@ -76,9 +74,7 @@ export function AppShell() {
                 >
                   <Tabs
                     value={activeTab}
-                    onValueChange={(value) =>
-                      setActiveTab(value as "requester" | "request-viewer")
-                    }
+                    onValueChange={(value) => setActiveTab(value as "requester" | "request-viewer")}
                     className="h-full flex flex-col"
                   >
                     <div className="border-b px-2 shrink-0">
@@ -116,12 +112,7 @@ export function AppShell() {
             {bottomPanelOpen && (
               <>
                 <ResizableHandle withHandle />
-                <ResizablePanel
-                  id="bottom-panel"
-                  defaultSize="30%"
-                  minSize="100px"
-                  maxSize="60%"
-                >
+                <ResizablePanel id="bottom-panel" defaultSize="30%" minSize="100px" maxSize="60%">
                   {activeBottomItem === "output" && <OutputPanel />}
                 </ResizablePanel>
               </>
