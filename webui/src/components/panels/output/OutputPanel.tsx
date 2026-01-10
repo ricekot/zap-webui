@@ -17,22 +17,13 @@ export function OutputPanel() {
           onValueChange={(v) => setOutputFilter(v as "all" | "spider" | "scanner")}
         >
           <TabsList className="h-7 bg-transparent p-0 gap-1">
-            <TabsTrigger
-              value="all"
-              className="h-6 px-2 text-xs data-[state=active]:bg-muted"
-            >
+            <TabsTrigger value="all" className="h-6 px-2 text-xs data-[state=active]:bg-muted">
               All
             </TabsTrigger>
-            <TabsTrigger
-              value="spider"
-              className="h-6 px-2 text-xs data-[state=active]:bg-muted"
-            >
+            <TabsTrigger value="spider" className="h-6 px-2 text-xs data-[state=active]:bg-muted">
               Spider
             </TabsTrigger>
-            <TabsTrigger
-              value="scanner"
-              className="h-6 px-2 text-xs data-[state=active]:bg-muted"
-            >
+            <TabsTrigger value="scanner" className="h-6 px-2 text-xs data-[state=active]:bg-muted">
               Scanner
             </TabsTrigger>
           </TabsList>
@@ -42,25 +33,12 @@ export function OutputPanel() {
           <div
             className={cn(
               "flex items-center gap-1.5 text-xs",
-              isConnected
-                ? "text-green-600"
-                : isReconnecting
-                ? "text-yellow-600"
-                : "text-red-600"
+              isConnected ? "text-green-600" : isReconnecting ? "text-yellow-600" : "text-red-600"
             )}
           >
-            <Circle
-              className={cn(
-                "h-2 w-2 fill-current",
-                isReconnecting && "animate-pulse"
-              )}
-            />
+            <Circle className={cn("h-2 w-2 fill-current", isReconnecting && "animate-pulse")} />
             <span>
-              {isConnected
-                ? "Connected"
-                : isReconnecting
-                ? "Reconnecting..."
-                : "Disconnected"}
+              {isConnected ? "Connected" : isReconnecting ? "Reconnecting..." : "Disconnected"}
             </span>
           </div>
         </div>

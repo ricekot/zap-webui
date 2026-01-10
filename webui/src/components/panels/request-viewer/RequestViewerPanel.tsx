@@ -2,14 +2,12 @@ import { useState } from "react"
 import { useUIStore } from "@/stores/ui"
 import { useMessage } from "@/lib/hooks/useMessage"
 import { CodeEditor } from "@/components/editor/CodeEditor"
+import { HeadersDisplay } from "@/components/shared/HeadersDisplay"
+import { parseHeaders } from "@/components/shared/headerUtils"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
-import {
-  ResizablePanelGroup,
-  ResizablePanel,
-  ResizableHandle,
-} from "@/components/ui/resizable"
-import { Loader2, ChevronDown, ChevronRight, Columns, Rows } from "lucide-react"
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable"
+import { Loader2, Columns, Rows } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 type ViewMode = "split" | "stacked"
@@ -41,9 +39,7 @@ export function RequestViewerPanel() {
       <div className="h-full flex items-center justify-center">
         <div className="p-4 rounded-md bg-destructive/10 text-destructive border border-destructive/20">
           <p className="font-medium">Failed to load message</p>
-          <p className="text-sm mt-1">
-            {error instanceof Error ? error.message : "Unknown error"}
-          </p>
+          <p className="text-sm mt-1">{error instanceof Error ? error.message : "Unknown error"}</p>
         </div>
       </div>
     )
@@ -55,9 +51,7 @@ export function RequestViewerPanel() {
     <div className="h-full flex flex-col">
       {/* Toolbar */}
       <div className="h-9 border-b px-3 flex items-center justify-between shrink-0">
-        <span className="text-sm text-muted-foreground truncate max-w-md">
-          {message.url}
-        </span>
+        <span className="text-sm text-muted-foreground truncate max-w-md">{message.url}</span>
         <div className="flex items-center gap-1">
           <Button
             variant={viewMode === "split" ? "secondary" : "ghost"}
@@ -117,7 +111,7 @@ interface RequestSectionProps {
 }
 
 function RequestSection({ method, url, headers, body }: RequestSectionProps) {
-  const [showHeaders, setShowHeaders] = useState(true)
+  const parsedHeaders = parseHeaders(headers)
 
   return (
     <ScrollArea className="h-full">
@@ -129,36 +123,13 @@ function RequestSection({ method, url, headers, body }: RequestSectionProps) {
           </span>
         </div>
 
-        {/* Headers */}
-        <div className="border rounded-md">
-          <button
-            className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium hover:bg-accent"
-            onClick={() => setShowHeaders(!showHeaders)}
-          >
-            {showHeaders ? (
-              <ChevronDown className="h-4 w-4" />
-            ) : (
-              <ChevronRight className="h-4 w-4" />
-            )}
-            Headers
-          </button>
-          {showHeaders && (
-            <div className="border-t">
-              <CodeEditor value={headers} language="text" readOnly minHeight="100px" />
-            </div>
-          )}
-        </div>
+        <HeadersDisplay headers={parsedHeaders} title="Headers" />
 
         {/* Body */}
         {body && (
           <div>
             <p className="text-sm font-medium mb-2">Body</p>
-            <CodeEditor
-              value={body}
-              language={detectLanguage(body)}
-              readOnly
-              minHeight="150px"
-            />
+            <CodeEditor value={body} language={detectLanguage(body)} readOnly minHeight="150px" />
           </div>
         )}
       </div>
@@ -174,14 +145,14 @@ interface ResponseSectionProps {
 }
 
 function ResponseSection({ statusCode, statusText, headers, body }: ResponseSectionProps) {
-  const [showHeaders, setShowHeaders] = useState(true)
+  const parsedHeaders = parseHeaders(headers)
 
   const statusColorClass =
     statusCode >= 200 && statusCode < 300
       ? "text-green-600 bg-green-50"
       : statusCode >= 400
-      ? "text-red-600 bg-red-50"
-      : "text-yellow-600 bg-yellow-50"
+        ? "text-red-600 bg-red-50"
+        : "text-yellow-600 bg-yellow-50"
 
   return (
     <ScrollArea className="h-full">
@@ -193,25 +164,7 @@ function ResponseSection({ statusCode, statusText, headers, body }: ResponseSect
           </span>
         </div>
 
-        {/* Headers */}
-        <div className="border rounded-md">
-          <button
-            className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium hover:bg-accent"
-            onClick={() => setShowHeaders(!showHeaders)}
-          >
-            {showHeaders ? (
-              <ChevronDown className="h-4 w-4" />
-            ) : (
-              <ChevronRight className="h-4 w-4" />
-            )}
-            Headers
-          </button>
-          {showHeaders && (
-            <div className="border-t">
-              <CodeEditor value={headers} language="text" readOnly minHeight="100px" />
-            </div>
-          )}
-        </div>
+        <HeadersDisplay headers={parsedHeaders} title="Headers" />
 
         {/* Body */}
         {body && (

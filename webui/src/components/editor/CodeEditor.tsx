@@ -57,12 +57,7 @@ export function CodeEditor({
   ]
 
   return (
-    <div
-      className={cn(
-        "overflow-hidden rounded-md border border-input bg-background",
-        className
-      )}
-    >
+    <div className={cn("overflow-hidden rounded-md border border-input bg-background", className)}>
       <CodeMirror
         value={value}
         onChange={onChange}

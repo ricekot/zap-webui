@@ -63,4 +63,14 @@ dependencies {
     implementation("org.eclipse.jetty:jetty-servlet:$jettyVersion")
     implementation("org.eclipse.jetty:jetty-proxy:$jettyVersion")
     implementation("org.eclipse.jetty.websocket:websocket-jetty-server:$jettyVersion")
+
+    // Test dependencies
+    testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
+    testImplementation("org.mockito:mockito-core:5.11.0")
+    testImplementation("org.mockito:mockito-junit-jupiter:5.11.0")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+tasks.test {
+    useJUnitPlatform()
 }

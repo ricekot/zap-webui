@@ -31,12 +31,7 @@ interface RequestEditorProps {
   isLoading: boolean
 }
 
-export function RequestEditor({
-  request,
-  onChange,
-  onSend,
-  isLoading,
-}: RequestEditorProps) {
+export function RequestEditor({ request, onChange, onSend, isLoading }: RequestEditorProps) {
   const [activeSection, setActiveSection] = useState<"headers" | "body">("headers")
 
   const updateHeader = (

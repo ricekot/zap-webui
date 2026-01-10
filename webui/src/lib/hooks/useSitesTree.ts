@@ -1,18 +1,12 @@
 import { useState, useEffect } from "react"
 import type { SiteTreeNode } from "@/components/panels/sites-tree/SiteNode"
-import {
-  wsAddEventHandler,
-  wsGetStatus,
-  wsSubscribe,
-  wsSend,
-  type ZapEvent,
-} from "./useZapEvents"
+import { wsAddEventHandler, wsGetStatus, wsSubscribe, wsSend, type ZapEvent } from "./useZapEvents"
 
 /**
  * Raw node data from the WebSocket API
  * This matches the format from WebUiEventEndpoint.serializeSiteNode()
  */
-interface RawSiteNode {
+export interface RawSiteNode {
   node: string
   hierarchicNodeName: string
   url?: string
@@ -26,7 +20,7 @@ interface RawSiteNode {
 /**
  * Transforms a raw site node from the WebSocket API into our UI tree node format
  */
-function transformNode(raw: RawSiteNode, parentPath: string = ""): SiteTreeNode {
+export function transformNode(raw: RawSiteNode, parentPath: string = ""): SiteTreeNode {
   // Build a unique ID from the hierarchic path
   const id = raw.hierarchicNodeName || `${parentPath}/${raw.node}`
 
@@ -91,10 +85,7 @@ function transformNode(raw: RawSiteNode, parentPath: string = ""): SiteTreeNode 
 /**
  * Inserts a node into the tree at the correct position based on its hierarchicNodeName
  */
-function insertNodeIntoTree(
-  tree: SiteTreeNode[],
-  newNode: RawSiteNode
-): SiteTreeNode[] {
+export function insertNodeIntoTree(tree: SiteTreeNode[], newNode: RawSiteNode): SiteTreeNode[] {
   // hierarchicNodeName is a URL like "https://example.com/path/to/resource"
   // Parse it to extract host and path segments
   let hostPart: string
@@ -150,9 +141,7 @@ function insertNodeIntoTree(
 
   if (pathSegments.length === 0) {
     // This is the host node itself, update it with the new data
-    return tree.map((n) =>
-      n === hostNode ? { ...n, ...transformNode(newNode) } : n
-    )
+    return tree.map((n) => (n === hostNode ? { ...n, ...transformNode(newNode) } : n))
   }
 
   // Navigate to the correct parent within the host and insert

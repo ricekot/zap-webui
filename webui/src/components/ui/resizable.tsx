@@ -4,17 +4,8 @@ import type { GroupProps, PanelProps, SeparatorProps } from "react-resizable-pan
 
 import { cn } from "@/lib/utils"
 
-const ResizablePanelGroup = ({
-  className,
-  ...props
-}: GroupProps) => (
-  <Group
-    className={cn(
-      "flex h-full w-full",
-      className
-    )}
-    {...props}
-  />
+const ResizablePanelGroup = ({ className, ...props }: GroupProps) => (
+  <Group className={cn("flex h-full w-full", className)} {...props} />
 )
 
 const ResizablePanel = Panel

@@ -133,7 +133,7 @@ function wsConnect() {
   } catch (e) {
     console.error("Failed to create WebSocket:", e)
     setStatus("error")
-    
+
     // Retry on error
     reconnectTimeout = setTimeout(() => {
       reconnectTimeout = null

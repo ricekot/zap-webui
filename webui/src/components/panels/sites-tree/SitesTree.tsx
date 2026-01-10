@@ -29,11 +29,7 @@ export function SitesTree() {
   }
 
   if (error) {
-    return (
-      <div className="p-4 text-sm text-destructive">
-        Failed to load sites tree
-      </div>
-    )
+    return <div className="p-4 text-sm text-destructive">Failed to load sites tree</div>
   }
 
   if (!sites || sites.length === 0) {

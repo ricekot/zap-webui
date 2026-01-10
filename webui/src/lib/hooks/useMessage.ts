@@ -42,9 +42,7 @@ export function useMessage(messageId: string | null) {
       }
 
       // Handle both array and single object response formats
-      const msg = Array.isArray(response.message)
-        ? response.message[0]
-        : response.message
+      const msg = Array.isArray(response.message) ? response.message[0] : response.message
 
       if (!msg) {
         throw new Error("Message not found")
@@ -57,7 +55,7 @@ export function useMessage(messageId: string | null) {
   })
 }
 
-function parseMessage(msg: {
+export function parseMessage(msg: {
   id: string
   requestHeader: string
   requestBody: string
@@ -78,9 +76,7 @@ function parseMessage(msg: {
     url = pathOrUrl
   } else {
     // Just a path, need to get host header to build full URL
-    const hostHeader = requestLines.find((line) =>
-      line.toLowerCase().startsWith("host:")
-    )
+    const hostHeader = requestLines.find((line) => line.toLowerCase().startsWith("host:"))
     const host = hostHeader ? hostHeader.substring(5).trim() : "unknown"
     url = `https://${host}${pathOrUrl}`
   }

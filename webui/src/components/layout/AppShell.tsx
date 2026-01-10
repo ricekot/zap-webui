@@ -1,8 +1,4 @@
-import {
-  ResizablePanelGroup,
-  ResizablePanel,
-  ResizableHandle,
-} from "@/components/ui/resizable"
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useUIStore } from "@/stores/ui"
 import { SitesTreePanel } from "@/components/panels/sites-tree/SitesTreePanel"
@@ -10,12 +6,7 @@ import { OutputPanel } from "@/components/panels/output/OutputPanel"
 import { RequesterPanel } from "@/components/panels/requester/RequesterPanel"
 import { RequestViewerPanel } from "@/components/panels/request-viewer/RequestViewerPanel"
 import { cn } from "@/lib/utils"
-import {
-  PanelLeftClose,
-  PanelLeftOpen,
-  PanelBottomClose,
-  PanelBottomOpen,
-} from "lucide-react"
+import { PanelLeftClose, PanelLeftOpen, PanelBottomClose, PanelBottomOpen } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 export function AppShell() {
@@ -68,20 +59,13 @@ export function AppShell() {
           orientation="horizontal"
           id="main-layout"
           defaultLayout={
-            leftSidebarOpen
-              ? { "left-sidebar": 20, "main-content": 80 }
-              : { "main-content": 100 }
+            leftSidebarOpen ? { "left-sidebar": 20, "main-content": 80 } : { "main-content": 100 }
           }
         >
           {/* Left Sidebar - Sites Tree */}
           {leftSidebarOpen && (
             <>
-              <ResizablePanel
-                id="left-sidebar"
-                defaultSize="20%"
-                minSize="200px"
-                maxSize="40%"
-              >
+              <ResizablePanel id="left-sidebar" defaultSize="20%" minSize="200px" maxSize="40%">
                 <SitesTreePanel />
               </ResizablePanel>
               <ResizableHandle withHandle />
@@ -111,9 +95,7 @@ export function AppShell() {
               >
                 <Tabs
                   value={activeTab}
-                  onValueChange={(value) =>
-                    setActiveTab(value as "requester" | "request-viewer")
-                  }
+                  onValueChange={(value) => setActiveTab(value as "requester" | "request-viewer")}
                   className="h-full flex flex-col"
                 >
                   <div className="border-b px-2 shrink-0">
@@ -139,10 +121,7 @@ export function AppShell() {
                   <TabsContent value="requester" className="flex-1 m-0 overflow-hidden">
                     <RequesterPanel />
                   </TabsContent>
-                  <TabsContent
-                    value="request-viewer"
-                    className="flex-1 m-0 overflow-hidden"
-                  >
+                  <TabsContent value="request-viewer" className="flex-1 m-0 overflow-hidden">
                     <RequestViewerPanel />
                   </TabsContent>
                 </Tabs>
@@ -152,12 +131,7 @@ export function AppShell() {
               {bottomPanelOpen && (
                 <>
                   <ResizableHandle withHandle />
-                  <ResizablePanel
-                    id="bottom-panel"
-                    defaultSize="30%"
-                    minSize="100px"
-                    maxSize="60%"
-                  >
+                  <ResizablePanel id="bottom-panel" defaultSize="30%" minSize="100px" maxSize="60%">
                     <OutputPanel />
                   </ResizablePanel>
                 </>

@@ -1,6 +1,6 @@
-import { useState } from "react"
 import { CodeEditor } from "@/components/editor/CodeEditor"
-import { Loader2, ChevronDown, ChevronRight } from "lucide-react"
+import { HeadersDisplay } from "@/components/shared/HeadersDisplay"
+import { Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { HttpResponse } from "./RequesterPanel"
 
@@ -11,8 +11,6 @@ interface ResponseViewerProps {
 }
 
 export function ResponseViewer({ response, error, isLoading }: ResponseViewerProps) {
-  const [showHeaders, setShowHeaders] = useState(false)
-
   if (isLoading) {
     return (
       <div className="h-full flex items-center justify-center text-muted-foreground">
@@ -45,8 +43,8 @@ export function ResponseViewer({ response, error, isLoading }: ResponseViewerPro
     response.statusCode >= 200 && response.statusCode < 300
       ? "text-green-600 bg-green-50"
       : response.statusCode >= 400
-      ? "text-red-600 bg-red-50"
-      : "text-yellow-600 bg-yellow-50"
+        ? "text-red-600 bg-red-50"
+        : "text-yellow-600 bg-yellow-50"
 
   // Detect language from content-type header
   const contentType =
@@ -54,10 +52,10 @@ export function ResponseViewer({ response, error, isLoading }: ResponseViewerPro
   const language = contentType.includes("json")
     ? "json"
     : contentType.includes("html")
-    ? "html"
-    : contentType.includes("xml")
-    ? "xml"
-    : "text"
+      ? "html"
+      : contentType.includes("xml")
+        ? "xml"
+        : "text"
 
   return (
     <div className="p-4 space-y-4">
@@ -75,30 +73,7 @@ export function ResponseViewer({ response, error, isLoading }: ResponseViewerPro
       </div>
 
       {/* Headers Section */}
-      <div className="border rounded-md">
-        <button
-          className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium hover:bg-accent"
-          onClick={() => setShowHeaders(!showHeaders)}
-        >
-          {showHeaders ? (
-            <ChevronDown className="h-4 w-4" />
-          ) : (
-            <ChevronRight className="h-4 w-4" />
-          )}
-          Response Headers
-          <span className="text-muted-foreground">({response.headers.length})</span>
-        </button>
-        {showHeaders && (
-          <div className="border-t px-3 py-2 space-y-1 bg-muted/30">
-            {response.headers.map((header, index) => (
-              <div key={index} className="flex gap-2 text-sm font-mono">
-                <span className="font-medium text-foreground">{header.key}:</span>
-                <span className="text-muted-foreground break-all">{header.value}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <HeadersDisplay headers={response.headers} title="Response Headers" defaultExpanded={false} />
 
       {/* Body */}
       <div>

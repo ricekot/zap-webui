@@ -3,12 +3,7 @@
  */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { zapView, zapAction } from "./client"
-import type {
-  AlertsResponse,
-  Version,
-  Mode,
-  Sites,
-} from "./types"
+import type { AlertsResponse, Version, Mode, Sites } from "./types"
 
 // Query key factory for consistent cache keys
 export const queryKeys = {
@@ -59,11 +54,7 @@ export function useSites() {
 
 // ============= Alerts API Hooks =============
 
-export function useAlerts(params?: {
-  baseurl?: string
-  start?: number
-  count?: number
-}) {
+export function useAlerts(params?: { baseurl?: string; start?: number; count?: number }) {
   return useQuery({
     queryKey: queryKeys.alerts.list(params),
     queryFn: () =>
@@ -80,8 +71,7 @@ export function useAlerts(params?: {
 export function useActiveScanStatus(scanId?: string) {
   return useQuery({
     queryKey: queryKeys.ascan.status(scanId),
-    queryFn: () =>
-      zapView<{ status: string }>("ascan", "status", scanId ? { scanId } : {}),
+    queryFn: () => zapView<{ status: string }>("ascan", "status", scanId ? { scanId } : {}),
     enabled: !!scanId,
     refetchInterval: (query) => {
       // Poll while scan is running
@@ -111,8 +101,7 @@ export function useStopActiveScan() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (scanId: string) =>
-      zapAction<{ Result: string }>("ascan", "stop", { scanId }),
+    mutationFn: (scanId: string) => zapAction<{ Result: string }>("ascan", "stop", { scanId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ascan"] })
     },
@@ -124,8 +113,7 @@ export function useStopActiveScan() {
 export function useSpiderStatus(scanId?: string) {
   return useQuery({
     queryKey: queryKeys.spider.status(scanId),
-    queryFn: () =>
-      zapView<{ status: string }>("spider", "status", scanId ? { scanId } : {}),
+    queryFn: () => zapView<{ status: string }>("spider", "status", scanId ? { scanId } : {}),
     enabled: !!scanId,
     refetchInterval: (query) => {
       const status = query.state.data?.status
@@ -160,8 +148,7 @@ export function useStopSpider() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (scanId: string) =>
-      zapAction<{ Result: string }>("spider", "stop", { scanId }),
+    mutationFn: (scanId: string) => zapAction<{ Result: string }>("spider", "stop", { scanId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["spider"] })
     },

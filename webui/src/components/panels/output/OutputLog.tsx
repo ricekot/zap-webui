@@ -28,8 +28,7 @@ export function OutputLog({ filter }: OutputLogProps) {
   // Detect manual scroll to pause auto-scroll
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const target = e.target as HTMLDivElement
-    const isAtBottom =
-      Math.abs(target.scrollHeight - target.scrollTop - target.clientHeight) < 10
+    const isAtBottom = Math.abs(target.scrollHeight - target.scrollTop - target.clientHeight) < 10
     setAutoScroll(isAtBottom)
   }
 
@@ -43,11 +42,7 @@ export function OutputLog({ filter }: OutputLogProps) {
 
   return (
     <ScrollArea className="flex-1">
-      <div
-        ref={scrollRef}
-        onScroll={handleScroll}
-        className="p-2 font-mono text-xs space-y-0.5"
-      >
+      <div ref={scrollRef} onScroll={handleScroll} className="p-2 font-mono text-xs space-y-0.5">
         {filteredLogs.map((log) => (
           <LogLine key={log.id} log={log} />
         ))}
@@ -65,9 +60,7 @@ function LogLine({ log }: { log: LogEntry }) {
         log.level === "warning" && "text-yellow-600"
       )}
     >
-      <span className="text-muted-foreground shrink-0">
-        {formatTime(log.timestamp)}
-      </span>
+      <span className="text-muted-foreground shrink-0">{formatTime(log.timestamp)}</span>
       {log.source !== "all" && (
         <span
           className={cn(

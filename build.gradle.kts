@@ -37,6 +37,30 @@ val lintWebUi by tasks.registering(Exec::class) {
     npmCommand("run", "lint")
 }
 
+val formatCheckWebUi by tasks.registering(Exec::class) {
+    group = webUiBuildTasksGroup
+    description = "Checks code formatting with Prettier"
+    dependsOn(installWebUiDependencies)
+    npmCommand("run", "format:check")
+}
+
+val formatWebUi by tasks.registering(Exec::class) {
+    group = webUiBuildTasksGroup
+    description = "Formats code with Prettier"
+    dependsOn(installWebUiDependencies)
+    npmCommand("run", "format")
+}
+
+val testWebUi by tasks.registering(Exec::class) {
+    group = webUiBuildTasksGroup
+    description = "Runs unit tests for the web UI"
+    dependsOn(installWebUiDependencies)
+    npmCommand("test")
+
+    inputs.dir("webui/src")
+    inputs.file("webui/vitest.config.ts")
+}
+
 val lintFixWebUi by tasks.registering(Exec::class) {
     group = webUiBuildTasksGroup
     description = "Runs ESLint on the web UI with auto-fix"
@@ -71,6 +95,8 @@ val copyWebUiToAddon by tasks.registering(Copy::class) {
 
 tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) {
     dependsOn(lintWebUi)
+    dependsOn(formatCheckWebUi)
+    dependsOn(testWebUi)
 }
 
 allprojects {

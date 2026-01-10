@@ -32,19 +32,16 @@ export function useOutputLogs(): OutputLogsState {
     },
   ])
 
-  const addLog = useCallback(
-    (log: Omit<LogEntry, "id" | "timestamp">) => {
-      setLogs((prev) => [
-        ...prev.slice(-999), // Keep only last 1000 logs
-        {
-          ...log,
-          id: generateLogId(),
-          timestamp: new Date(),
-        },
-      ])
-    },
-    []
-  )
+  const addLog = useCallback((log: Omit<LogEntry, "id" | "timestamp">) => {
+    setLogs((prev) => [
+      ...prev.slice(-999), // Keep only last 1000 logs
+      {
+        ...log,
+        id: generateLogId(),
+        timestamp: new Date(),
+      },
+    ])
+  }, [])
 
   const clearLogs = useCallback(() => {
     setLogs([])

@@ -38,12 +38,9 @@ export const useUIStore = create<UIState>()(
       rightSidebarOpen: false,
 
       // Panel toggles
-      toggleLeftSidebar: () =>
-        set((state) => ({ leftSidebarOpen: !state.leftSidebarOpen })),
-      toggleBottomPanel: () =>
-        set((state) => ({ bottomPanelOpen: !state.bottomPanelOpen })),
-      toggleRightSidebar: () =>
-        set((state) => ({ rightSidebarOpen: !state.rightSidebarOpen })),
+      toggleLeftSidebar: () => set((state) => ({ leftSidebarOpen: !state.leftSidebarOpen })),
+      toggleBottomPanel: () => set((state) => ({ bottomPanelOpen: !state.bottomPanelOpen })),
+      toggleRightSidebar: () => set((state) => ({ rightSidebarOpen: !state.rightSidebarOpen })),
 
       // Active center tab - default to requester
       activeTab: "requester",

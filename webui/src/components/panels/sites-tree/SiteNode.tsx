@@ -118,8 +118,8 @@ export function SiteNode({ node, depth, expandedNodes, onToggle }: SiteNodeProps
                 node.statusCode >= 200 && node.statusCode < 300
                   ? "text-green-600"
                   : node.statusCode >= 400
-                  ? "text-red-600"
-                  : "text-muted-foreground"
+                    ? "text-red-600"
+                    : "text-muted-foreground"
               )}
             >
               {node.statusCode}
