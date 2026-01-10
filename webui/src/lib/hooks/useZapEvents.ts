@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useSyncExternalStore } from "react"
+import { useEffect, useRef, useSyncExternalStore } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/api/hooks"
 
@@ -6,37 +6,34 @@ import { queryKeys } from "@/lib/api/hooks"
  * WebSocket event types from ZAP
  */
 export interface ZapEvent {
-  event: string
+  type: string
   timestamp: number
+  data?: unknown
   [key: string]: unknown
 }
 
 export interface AlertEvent extends ZapEvent {
-  event: "alert"
-  alertId: string
-  name: string
-  risk: string
-  uri: string
+  type: "alert"
+  data: {
+    alertId: string
+    name: string
+    risk: string
+    uri: string
+  }
 }
 
 export interface ScanEvent extends ZapEvent {
-  event: "scan.started" | "scan.progress" | "scan.completed"
-  scanId: string
-  scanType: "active" | "spider"
-  progress?: number
+  type: "scan.started" | "scan.progress" | "scan.completed"
+  data: {
+    scanId: string
+    scanType: "active" | "spider"
+    progress?: number
+  }
 }
 
 export type WebSocketStatus = "connecting" | "connected" | "disconnected" | "error"
 
 interface UseZapEventsOptions {
-  /**
-   * Auto-reconnect on disconnect (default: true)
-   */
-  autoReconnect?: boolean
-  /**
-   * Reconnect delay in ms (default: 3000)
-   */
-  reconnectDelay?: number
   /**
    * Custom event handler
    */
@@ -50,23 +47,36 @@ interface UseZapEventsOptions {
 // WebSocket manager module-level state
 type StatusListener = (status: WebSocketStatus) => void
 type EventHandler = (event: ZapEvent) => void
+type RequestCallback = (response: ZapEvent) => void
 
 let ws: WebSocket | null = null
 let status: WebSocketStatus = "disconnected"
-const listeners = new Set<StatusListener>()
+const statusListeners = new Set<StatusListener>()
 let reconnectTimeout: ReturnType<typeof setTimeout> | null = null
 const eventHandlers = new Set<EventHandler>()
-let autoReconnectEnabled = true
 let reconnectDelayMs = 3000
+
+// Pending request callbacks for request/response pattern
+const pendingRequests = new Map<string, RequestCallback>()
 
 function setStatus(newStatus: WebSocketStatus) {
   status = newStatus
-  listeners.forEach((listener) => listener(newStatus))
+  statusListeners.forEach((listener) => listener(newStatus))
 }
 
 function handleMessage(messageEvent: MessageEvent) {
   try {
     const event = JSON.parse(messageEvent.data) as ZapEvent
+
+    // Check if this is a response to a pending request
+    const responseType = event.type
+    const callback = pendingRequests.get(responseType)
+    if (callback) {
+      pendingRequests.delete(responseType)
+      callback(event)
+    }
+
+    // Always notify event handlers
     eventHandlers.forEach((handler) => handler(event))
   } catch (e) {
     console.error("Failed to parse WebSocket message:", e)
@@ -74,6 +84,11 @@ function handleMessage(messageEvent: MessageEvent) {
 }
 
 function wsConnect() {
+  // Don't reconnect if already connected or connecting
+  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+    return
+  }
+
   // Clean up existing connection
   if (ws) {
     ws.close()
@@ -109,64 +124,28 @@ function wsConnect() {
       setStatus("disconnected")
       ws = null
 
-      // Auto-reconnect
-      if (autoReconnectEnabled) {
-        reconnectTimeout = setTimeout(() => {
-          reconnectTimeout = null
-          wsConnect()
-        }, reconnectDelayMs)
-      }
+      // Always auto-reconnect
+      reconnectTimeout = setTimeout(() => {
+        reconnectTimeout = null
+        wsConnect()
+      }, reconnectDelayMs)
     }
   } catch (e) {
     console.error("Failed to create WebSocket:", e)
     setStatus("error")
+    
+    // Retry on error
+    reconnectTimeout = setTimeout(() => {
+      reconnectTimeout = null
+      wsConnect()
+    }, reconnectDelayMs)
   }
-}
-
-function wsDisconnect() {
-  // Temporarily disable auto-reconnect
-  const wasAutoReconnect = autoReconnectEnabled
-  autoReconnectEnabled = false
-
-  // Clear reconnect timeout
-  if (reconnectTimeout) {
-    clearTimeout(reconnectTimeout)
-    reconnectTimeout = null
-  }
-
-  // Close WebSocket
-  if (ws) {
-    ws.close()
-    ws = null
-  }
-
-  setStatus("disconnected")
-
-  // Restore auto-reconnect setting
-  autoReconnectEnabled = wasAutoReconnect
-}
-
-function wsCleanup() {
-  autoReconnectEnabled = false
-  if (reconnectTimeout) {
-    clearTimeout(reconnectTimeout)
-    reconnectTimeout = null
-  }
-  if (ws) {
-    ws.close()
-    ws = null
-  }
-}
-
-function wsSetOptions(autoReconnect: boolean, reconnectDelay: number) {
-  autoReconnectEnabled = autoReconnect
-  reconnectDelayMs = reconnectDelay
 }
 
 function wsSubscribe(listener: StatusListener) {
-  listeners.add(listener)
+  statusListeners.add(listener)
   return () => {
-    listeners.delete(listener)
+    statusListeners.delete(listener)
   }
 }
 
@@ -181,18 +160,68 @@ function wsAddEventHandler(handler: EventHandler) {
   }
 }
 
+// Connect immediately when module loads
+wsConnect()
+
+/**
+ * Send a message through the WebSocket
+ */
+export function wsSend(message: Record<string, unknown>): boolean {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(message))
+    return true
+  }
+  return false
+}
+
+/**
+ * Send a request and wait for a response of the specified type
+ */
+export function wsRequest(
+  message: Record<string, unknown>,
+  responseType: string
+): Promise<ZapEvent> {
+  return new Promise((resolve, reject) => {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      reject(new Error("WebSocket not connected"))
+      return
+    }
+
+    // Set up callback for the response
+    pendingRequests.set(responseType, resolve)
+
+    // Set up timeout
+    const timeout = setTimeout(() => {
+      pendingRequests.delete(responseType)
+      reject(new Error(`Request timeout waiting for ${responseType}`))
+    }, 10000)
+
+    // Modify callback to clear timeout
+    const originalCallback = pendingRequests.get(responseType)!
+    pendingRequests.set(responseType, (response) => {
+      clearTimeout(timeout)
+      originalCallback(response)
+    })
+
+    // Send the message
+    ws.send(JSON.stringify(message))
+  })
+}
+
+/**
+ * Get the WebSocket instance (for advanced use cases)
+ */
+export function wsGetSocket(): WebSocket | null {
+  return ws
+}
+
 /**
  * Hook for connecting to ZAP's WebSocket event stream
  *
  * Automatically invalidates relevant TanStack Query caches when events arrive.
  */
 export function useZapEvents(options: UseZapEventsOptions = {}) {
-  const {
-    autoReconnect = true,
-    reconnectDelay = 3000,
-    onEvent,
-    onStatusChange,
-  } = options
+  const { onEvent, onStatusChange } = options
 
   const queryClient = useQueryClient()
   const onEventRef = useRef(onEvent)
@@ -210,11 +239,6 @@ export function useZapEvents(options: UseZapEventsOptions = {}) {
   // Use useSyncExternalStore for status
   const currentStatus = useSyncExternalStore(wsSubscribe, wsGetStatus, wsGetStatus)
 
-  // Update options
-  useEffect(() => {
-    wsSetOptions(autoReconnect, reconnectDelay)
-  }, [autoReconnect, reconnectDelay])
-
   // Handle status changes
   useEffect(() => {
     onStatusChangeRef.current?.(currentStatus)
@@ -227,7 +251,7 @@ export function useZapEvents(options: UseZapEventsOptions = {}) {
       onEventRef.current?.(event)
 
       // Auto-invalidate relevant queries based on event type
-      switch (event.event) {
+      switch (event.type) {
         case "alert":
           queryClient.invalidateQueries({ queryKey: queryKeys.alerts.all })
           break
@@ -235,13 +259,13 @@ export function useZapEvents(options: UseZapEventsOptions = {}) {
         case "scan.progress":
         case "scan.completed": {
           const scanEvent = event as ScanEvent
-          if (scanEvent.scanType === "active") {
+          if (scanEvent.data?.scanType === "active") {
             queryClient.invalidateQueries({
-              queryKey: queryKeys.ascan.status(scanEvent.scanId),
+              queryKey: queryKeys.ascan.status(scanEvent.data.scanId),
             })
-          } else if (scanEvent.scanType === "spider") {
+          } else if (scanEvent.data?.scanType === "spider") {
             queryClient.invalidateQueries({
-              queryKey: queryKeys.spider.status(scanEvent.scanId),
+              queryKey: queryKeys.spider.status(scanEvent.data.scanId),
             })
           }
           break
@@ -255,26 +279,11 @@ export function useZapEvents(options: UseZapEventsOptions = {}) {
     return wsAddEventHandler(handleEvent)
   }, [queryClient])
 
-  // Connect on mount
-  useEffect(() => {
-    wsConnect()
-    return () => {
-      wsCleanup()
-    }
-  }, [])
-
-  const connect = useCallback(() => {
-    wsConnect()
-  }, [])
-
-  const disconnect = useCallback(() => {
-    wsDisconnect()
-  }, [])
-
   return {
     status: currentStatus,
-    connect,
-    disconnect,
     isConnected: currentStatus === "connected",
   }
 }
+
+// Export for use in useSitesTree and useZapConnection
+export { wsAddEventHandler, wsGetStatus, wsSubscribe }

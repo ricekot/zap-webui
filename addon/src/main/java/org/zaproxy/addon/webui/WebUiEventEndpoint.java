@@ -19,14 +19,21 @@
  */
 package org.zaproxy.addon.webui;
 
+import java.util.Enumeration;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
+import javax.swing.tree.TreeNode;
+import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.WebSocketAdapter;
 import org.eclipse.jetty.websocket.api.WriteCallback;
+import org.parosproxy.paros.model.HistoryReference;
+import org.parosproxy.paros.model.Model;
+import org.parosproxy.paros.model.SiteMap;
+import org.parosproxy.paros.model.SiteNode;
 
 /**
  * WebSocket endpoint for the Web UI that provides real-time event updates from ZAP. This endpoint
@@ -45,6 +52,9 @@ import org.eclipse.jetty.websocket.api.WriteCallback;
 public class WebUiEventEndpoint extends WebSocketAdapter {
 
     private static final Logger LOGGER = LogManager.getLogger(WebUiEventEndpoint.class);
+
+    /** Root node name for the sites tree. */
+    private static final String ROOT_NODE_NAME = "Sites";
 
     /** Set of all connected client sessions. Thread-safe for concurrent access. */
     private static final Set<Session> SESSIONS = new CopyOnWriteArraySet<>();
@@ -73,6 +83,10 @@ public class WebUiEventEndpoint extends WebSocketAdapter {
                 case "ping":
                     // Respond to ping with pong
                     sendMessage(getSession(), createMessage("pong", null));
+                    break;
+                case "getSitesTree":
+                    // Send the full sites tree to the client
+                    handleGetSitesTree(getSession());
                     break;
                 case "subscribe":
                     // TODO: Handle event subscription requests
@@ -197,5 +211,74 @@ public class WebUiEventEndpoint extends WebSocketAdapter {
             }
         }
         SESSIONS.clear();
+    }
+
+    /**
+     * Handles a request to get the full sites tree.
+     *
+     * @param session the client session to send the response to
+     */
+    private void handleGetSitesTree(Session session) {
+        try {
+            SiteMap siteMap = Model.getSingleton().getSession().getSiteTree();
+            SiteNode root = siteMap.getRoot();
+            JSONObject treeData = serializeSiteNode(root, true);
+            sendMessage(session, createMessage("sitesTree", treeData));
+        } catch (Exception e) {
+            LOGGER.error("Error getting sites tree", e);
+            JSONObject errorData = new JSONObject();
+            errorData.put("error", e.getMessage());
+            sendMessage(session, createMessage("sitesTree.error", errorData));
+        }
+    }
+
+    /**
+     * Serializes a SiteNode to JSON format for the frontend. This method is also used by
+     * ExtensionWebUi for broadcasting sitenode.added events.
+     *
+     * @param node the site node to serialize
+     * @param includeChildren whether to recursively include child nodes
+     * @return JSON representation of the node
+     */
+    static JSONObject serializeSiteNode(SiteNode node, boolean includeChildren) {
+        JSONObject json = new JSONObject();
+
+        // Node display name (similar to SitesTreeHandler)
+        String nodeName = node.getParent() == null ? ROOT_NODE_NAME : node.getNodeName();
+        json.put("node", nodeName);
+
+        // Get hierarchical path for tree positioning
+        json.put("hierarchicNodeName", node.getHierarchicNodeName());
+
+        HistoryReference href = node.getHistoryReference();
+        if (href != null) {
+            try {
+                json.put("url", href.getURI().toString());
+                json.put("method", href.getMethod());
+
+                if (href.getStatusCode() > 0) {
+                    json.put("statusCode", href.getStatusCode());
+                    json.put(
+                            "responseLength",
+                            href.getResponseHeaderLength() + href.getResponseBodyLength() + 2);
+                }
+
+                json.put("messageId", href.getHistoryId());
+            } catch (Exception e) {
+                LOGGER.debug("Error getting history reference data", e);
+            }
+        }
+
+        // Include children for tree structure (only if requested)
+        if (includeChildren && node.getChildCount() > 0) {
+            JSONArray children = new JSONArray();
+            for (Enumeration<TreeNode> e = node.children(); e.hasMoreElements(); ) {
+                SiteNode child = (SiteNode) e.nextElement();
+                children.add(serializeSiteNode(child, true));
+            }
+            json.put("children", children);
+        }
+
+        return json;
     }
 }

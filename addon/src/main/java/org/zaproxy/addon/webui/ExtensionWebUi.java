@@ -28,12 +28,17 @@ import org.parosproxy.paros.Constant;
 import org.parosproxy.paros.extension.ExtensionAdaptor;
 import org.parosproxy.paros.extension.ExtensionHook;
 import org.parosproxy.paros.model.Model;
+import org.parosproxy.paros.model.SiteMapEventPublisher;
+import org.parosproxy.paros.model.SiteNode;
+import org.zaproxy.zap.ZAP;
+import org.zaproxy.zap.eventBus.Event;
+import org.zaproxy.zap.eventBus.EventConsumer;
 
 /**
  * Extension that provides a modern web-based UI for ZAP. The Web UI is served via an embedded HTTP
  * server and communicates with ZAP via its existing API.
  */
-public class ExtensionWebUi extends ExtensionAdaptor {
+public class ExtensionWebUi extends ExtensionAdaptor implements EventConsumer {
 
     public static final String NAME = "ExtensionWebUi";
 
@@ -58,6 +63,13 @@ public class ExtensionWebUi extends ExtensionAdaptor {
         // Register parameters
         this.param = new WebUiParam();
         extensionHook.addOptionsParamSet(this.param);
+
+        // Subscribe to site map events via the global EventBus
+        ZAP.getEventBus()
+                .registerConsumer(
+                        this,
+                        SiteMapEventPublisher.getPublisher().getPublisherName(),
+                        SiteMapEventPublisher.SITE_NODE_ADDED_EVENT);
     }
 
     @Override
@@ -146,6 +158,7 @@ public class ExtensionWebUi extends ExtensionAdaptor {
 
     @Override
     public void unload() {
+        ZAP.getEventBus().unregisterConsumer(this);
         stopWebUiServer();
         super.unload();
     }
@@ -186,5 +199,18 @@ public class ExtensionWebUi extends ExtensionAdaptor {
      */
     public WebUiParam getParam() {
         return param;
+    }
+
+    @Override
+    public void eventReceived(Event event) {
+        if (SiteMapEventPublisher.SITE_NODE_ADDED_EVENT.equals(event.getEventType())) {
+            SiteNode siteNode = event.getTarget().getStartNode();
+            if (siteNode != null) {
+                // Don't include children for incremental updates - frontend will insert at correct
+                // position
+                WebUiEventEndpoint.broadcastEvent(
+                        "sitenode.added", WebUiEventEndpoint.serializeSiteNode(siteNode, false));
+            }
+        }
     }
 }

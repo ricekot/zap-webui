@@ -1,47 +1,20 @@
-import { useState, useEffect, useCallback } from "react"
+import { useSyncExternalStore } from "react"
+import { wsSubscribe, wsGetStatus } from "./useZapEvents"
 
 interface ZapConnectionState {
   isConnected: boolean
   isReconnecting: boolean
 }
 
+/**
+ * Hook to get ZAP connection status based on WebSocket state.
+ * No longer polls - uses the shared WebSocket connection status.
+ */
 export function useZapConnection(): ZapConnectionState {
-  const [state, setState] = useState<ZapConnectionState>({
-    isConnected: false,
-    isReconnecting: false,
-  })
+  const status = useSyncExternalStore(wsSubscribe, wsGetStatus, wsGetStatus)
 
-  const checkConnection = useCallback(async () => {
-    try {
-      const response = await fetch("/api/JSON/core/view/version/")
-      if (response.ok) {
-        setState({ isConnected: true, isReconnecting: false })
-      } else {
-        setState((prev) => ({
-          isConnected: false,
-          isReconnecting: prev.isConnected,
-        }))
-      }
-    } catch {
-      setState((prev) => ({
-        isConnected: false,
-        isReconnecting: prev.isConnected,
-      }))
-    }
-  }, [])
-
-  useEffect(() => {
-    // Use setTimeout for initial check to avoid synchronous setState
-    const initialTimeout = setTimeout(checkConnection, 0)
-
-    // Check connection every 5 seconds
-    const interval = setInterval(checkConnection, 5000)
-
-    return () => {
-      clearTimeout(initialTimeout)
-      clearInterval(interval)
-    }
-  }, [checkConnection])
-
-  return state
+  return {
+    isConnected: status === "connected",
+    isReconnecting: status === "connecting",
+  }
 }
