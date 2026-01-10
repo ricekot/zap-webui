@@ -114,7 +114,7 @@ function RequestSection({ method, url, headers, body }: RequestSectionProps) {
   const parsedHeaders = parseHeaders(headers)
 
   return (
-    <ScrollArea className="h-full">
+    <ScrollArea className="h-full bg-muted/30">
       <div className="p-4 space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-medium">Request</h3>

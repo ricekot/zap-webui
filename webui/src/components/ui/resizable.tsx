@@ -1,4 +1,4 @@
-import { GripVertical } from "lucide-react"
+import { GripHorizontal, GripVertical } from "lucide-react"
 import { Group, Panel, Separator } from "react-resizable-panels"
 import type { GroupProps, PanelProps, SeparatorProps } from "react-resizable-panels"
 
@@ -19,16 +19,23 @@ const ResizableHandle = ({
 }) => (
   <Separator
     className={cn(
-      "relative flex w-1 items-center justify-center bg-border hover:bg-primary/20 transition-colors cursor-col-resize",
-      "data-[orientation=vertical]:h-1 data-[orientation=vertical]:w-full data-[orientation=vertical]:cursor-row-resize",
+      "group relative flex w-1 items-center justify-center bg-border hover:bg-primary/20 transition-colors cursor-col-resize",
+      "aria-[orientation=horizontal]:h-1 aria-[orientation=horizontal]:w-full aria-[orientation=horizontal]:cursor-row-resize",
       className
     )}
     {...props}
   >
     {withHandle && (
-      <div className="z-10 flex h-4 w-3 items-center justify-center rounded-sm border bg-border">
-        <GripVertical className="h-2.5 w-2.5" />
-      </div>
+      <>
+        {/* Vertical grip (for vertical separator - side by side panels) */}
+        <div className="z-10 flex h-4 w-3 items-center justify-center rounded-sm border bg-border group-aria-[orientation=horizontal]:hidden">
+          <GripVertical className="h-2.5 w-2.5" />
+        </div>
+        {/* Horizontal grip (for horizontal separator - stacked panels) */}
+        <div className="z-10 hidden h-3 w-4 items-center justify-center rounded-sm border bg-border group-aria-[orientation=horizontal]:flex">
+          <GripHorizontal className="h-2.5 w-2.5" />
+        </div>
+      </>
     )}
   </Separator>
 )

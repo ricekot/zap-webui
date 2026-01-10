@@ -10,7 +10,7 @@ export function OutputPanel() {
   const { isConnected, isReconnecting } = useZapConnection()
 
   return (
-    <div className="h-full flex flex-col border-t">
+    <div className="h-full flex flex-col border-t bg-muted/30">
       <div className="h-9 border-b px-2 flex items-center justify-between shrink-0">
         <Tabs
           value={outputFilter}

@@ -9,72 +9,76 @@ import { ActivityBar } from "./ActivityBar"
 import { cn } from "@/lib/utils"
 
 export function AppShell() {
-  const {
-    activeSidebarItem,
-    activeBottomItem,
-    activeTab,
-    setActiveTab,
-  } = useUIStore()
+  const { activeSidebarItem, activeBottomItem, activeTab, setActiveTab } = useUIStore()
 
   const leftSidebarOpen = activeSidebarItem !== null
   const bottomPanelOpen = activeBottomItem !== null
 
   return (
-    <div className="h-screen w-screen flex bg-background overflow-hidden">
-      {/* Activity Bar - Always visible */}
-      <ActivityBar />
+    <div className="h-screen w-screen flex flex-col bg-background overflow-hidden">
+      {/* Toolbar - Spans full width */}
+      <div className="h-10 border-b flex items-center px-2 gap-1 shrink-0">
+        <div className="flex-1" />
+        <span className="text-sm text-muted-foreground">ZAP Web UI</span>
+      </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Toolbar */}
-        <div className="h-10 border-b flex items-center px-2 gap-1 shrink-0">
-          <div className="flex-1" />
-          <span className="text-sm text-muted-foreground">ZAP Web UI</span>
-        </div>
+      {/* Main Area - Activity Bar + Content */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Activity Bar - Always visible */}
+        <ActivityBar />
 
-        {/* Content */}
+        {/* Content Area - Sidebar/Center on top, Output on bottom */}
         <div className="flex-1 overflow-hidden">
           <ResizablePanelGroup
-            orientation="horizontal"
-            id="main-layout"
+            orientation="vertical"
+            id="content-vertical-layout"
             defaultLayout={
-              leftSidebarOpen ? { "left-sidebar": 20, "main-content": 80 } : { "main-content": 100 }
+              bottomPanelOpen
+                ? { "top-area": 70, "bottom-panel": 30 }
+                : { "top-area": 100 }
             }
           >
-            {/* Left Sidebar - Sites Tree */}
-            {leftSidebarOpen && (
-              <>
-                <ResizablePanel id="left-sidebar" defaultSize="20%" minSize="200px" maxSize="40%">
-                  {activeSidebarItem === "sites" && <SitesTreePanel />}
-                </ResizablePanel>
-                <ResizableHandle withHandle />
-              </>
-            )}
-
-            {/* Center and Bottom Panels */}
+            {/* Top Area - Sidebar + Center */}
             <ResizablePanel
-              id="main-content"
-              defaultSize={leftSidebarOpen ? "80%" : "100%"}
-              minSize="40%"
+              id="top-area"
+              defaultSize={bottomPanelOpen ? "70%" : "100%"}
+              minSize="30%"
             >
               <ResizablePanelGroup
-                orientation="vertical"
-                id="center-layout"
+                orientation="horizontal"
+                id="main-layout"
                 defaultLayout={
-                  bottomPanelOpen
-                    ? { "center-panel": 70, "bottom-panel": 30 }
-                    : { "center-panel": 100 }
+                  leftSidebarOpen
+                    ? { "left-sidebar": 20, "main-content": 80 }
+                    : { "main-content": 100 }
                 }
               >
+                {/* Left Sidebar - Sites Tree */}
+                {leftSidebarOpen && (
+                  <>
+                    <ResizablePanel
+                      id="left-sidebar"
+                      defaultSize="20%"
+                      minSize="200px"
+                      maxSize="40%"
+                    >
+                      {activeSidebarItem === "sites" && <SitesTreePanel />}
+                    </ResizablePanel>
+                    <ResizableHandle withHandle />
+                  </>
+                )}
+
                 {/* Center Panel - Tabs */}
                 <ResizablePanel
-                  id="center-panel"
-                  defaultSize={bottomPanelOpen ? "70%" : "100%"}
-                  minSize="30%"
+                  id="main-content"
+                  defaultSize={leftSidebarOpen ? "80%" : "100%"}
+                  minSize="40%"
                 >
                   <Tabs
                     value={activeTab}
-                    onValueChange={(value) => setActiveTab(value as "requester" | "request-viewer")}
+                    onValueChange={(value) =>
+                      setActiveTab(value as "requester" | "request-viewer")
+                    }
                     className="h-full flex flex-col"
                   >
                     <div className="border-b px-2 shrink-0">
@@ -105,18 +109,23 @@ export function AppShell() {
                     </TabsContent>
                   </Tabs>
                 </ResizablePanel>
-
-                {/* Bottom Panel - Output */}
-                {bottomPanelOpen && (
-                  <>
-                    <ResizableHandle withHandle />
-                    <ResizablePanel id="bottom-panel" defaultSize="30%" minSize="100px" maxSize="60%">
-                      {activeBottomItem === "output" && <OutputPanel />}
-                    </ResizablePanel>
-                  </>
-                )}
               </ResizablePanelGroup>
             </ResizablePanel>
+
+            {/* Bottom Panel - Output (spans under sidebar and center) */}
+            {bottomPanelOpen && (
+              <>
+                <ResizableHandle withHandle />
+                <ResizablePanel
+                  id="bottom-panel"
+                  defaultSize="30%"
+                  minSize="100px"
+                  maxSize="60%"
+                >
+                  {activeBottomItem === "output" && <OutputPanel />}
+                </ResizablePanel>
+              </>
+            )}
           </ResizablePanelGroup>
         </div>
       </div>

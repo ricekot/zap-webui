@@ -118,9 +118,13 @@ export function RequesterPanel() {
       </ResizablePanel>
       <ResizableHandle withHandle />
       <ResizablePanel id="response-viewer" defaultSize="50%" minSize="20%">
-        <ScrollArea className="h-full">
+        {response ? (
+          <ScrollArea className="h-full">
+            <ResponseViewer response={response} error={error} isLoading={isLoading} />
+          </ScrollArea>
+        ) : (
           <ResponseViewer response={response} error={error} isLoading={isLoading} />
-        </ScrollArea>
+        )}
       </ResizablePanel>
     </ResizablePanelGroup>
   )
