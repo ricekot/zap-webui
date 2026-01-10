@@ -37,6 +37,13 @@ val lintWebUi by tasks.registering(Exec::class) {
     npmCommand("run", "lint")
 }
 
+val lintFixWebUi by tasks.registering(Exec::class) {
+    group = webUiBuildTasksGroup
+    description = "Runs ESLint on the web UI with auto-fix"
+    dependsOn(installWebUiDependencies)
+    npmCommand("run", "lint", "--", "--fix")
+}
+
 val buildWebUi by tasks.registering(Exec::class) {
     group = webUiBuildTasksGroup
     description = "Builds the web UI for production"

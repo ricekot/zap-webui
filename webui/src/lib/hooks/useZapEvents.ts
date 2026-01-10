@@ -54,7 +54,7 @@ let status: WebSocketStatus = "disconnected"
 const statusListeners = new Set<StatusListener>()
 let reconnectTimeout: ReturnType<typeof setTimeout> | null = null
 const eventHandlers = new Set<EventHandler>()
-let reconnectDelayMs = 3000
+const reconnectDelayMs = 3000
 
 // Pending request callbacks for request/response pattern
 const pendingRequests = new Map<string, RequestCallback>()
