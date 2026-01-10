@@ -56,4 +56,11 @@ tasks.named("generateZapAddOnManifest") {
 
 dependencies {
     compileOnly("org.zaproxy.addon:commonlib:1.36.0")
+
+    // Jetty for embedded HTTP server and WebSocket
+    val jettyVersion = "10.0.24"
+    implementation("org.eclipse.jetty:jetty-server:$jettyVersion")
+    implementation("org.eclipse.jetty:jetty-servlet:$jettyVersion")
+    implementation("org.eclipse.jetty:jetty-proxy:$jettyVersion")
+    implementation("org.eclipse.jetty.websocket:websocket-jetty-server:$jettyVersion")
 }

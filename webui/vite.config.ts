@@ -17,7 +17,9 @@ export default defineConfig({
         target: "http://localhost:8080",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ""),
-        ws: true, // Enable WebSocket proxy
+        // Note: /api/events WebSocket is served by the add-on's WebUiServer,
+        // not by ZAP's API. During development, you'll need to run the add-on
+        // or mock the WebSocket endpoint.
       },
     },
   },

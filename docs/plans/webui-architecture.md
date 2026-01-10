@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document outlines the architecture and implementation plan for a web-based UI for ZAP (Zed Attack Proxy). The web UI will be accessible directly via URL (e.g., `http://localhost:1337/`) and will communicate with ZAP via its existing API and WebSocket infrastructure.
+This document outlines the architecture and implementation plan for a web-based UI for ZAP (Zed Attack Proxy). The web UI will be accessible directly via URL (e.g., `http://localhost:9999/`) and will communicate with ZAP via its existing API and WebSocket infrastructure.
 
 ## Technology Stack
 
@@ -97,7 +97,7 @@ zap-webui/
 ┌─────────────────────────────────────────────────────────────────┐
 │                         BROWSER                                  │
 │  ┌───────────────────────────────────────────────────────────┐  │
-│  │  http://localhost:1337/                                    │  │
+│  │  http://localhost:9999/                                    │  │
 │  │  ┌─────────────────────────────────────────────────────┐  │  │
 │  │  │              React SPA                               │  │  │
 │  │  │                                                      │  │  │
@@ -111,19 +111,19 @@ zap-webui/
 │  │  │  ┌─────────────────────────────────────────────┐    │  │  │
 │  │  │  │              API Client                      │    │  │  │
 │  │  │  │  - Calls to /api/JSON/...                    │    │  │  │
-│  │  │  │  - WebSocket to /api/websocket               │    │  │  │
+│  │  │  │  - WebSocket to /api/events                  │    │  │  │
 │  │  │  └─────────────────────────────────────────────┘    │  │  │
 │  │  └─────────────────────────────────────────────────────┘  │  │
 │  └───────────────────────────────────────────────────────────┘  │
 │         │ HTTP (static + API)           │ WebSocket              │
 └─────────┼───────────────────────────────┼────────────────────────┘
-          │ Single origin (:1337)         │
+          │ Single origin (:9999)         │
           ▼                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                          ZAP                                     │
 │                                                                  │
 │  ┌───────────────────────────────────────────────────────────┐  │
-│  │  WebUiServer.java (Jetty) - Port 1337                      │  │
+│  │  WebUiServer.java (Jetty) - Port 9999                      │  │
 │  │                                                             │  │
 │  │  Static Files:                                              │  │
 │  │   /                       → index.html                      │  │
@@ -133,7 +133,9 @@ zap-webui/
 │  │  Proxy Layer:                                               │  │
 │  │   /api/JSON/*             → localhost:8080/JSON/*           │  │
 │  │   /api/OTHER/*            → localhost:8080/OTHER/*          │  │
-│  │   /api/websocket          → ws://localhost:8080/websocket   │  │
+│  │                                                             │  │
+│  │  WebSocket (native endpoint, not a proxy):                  │  │
+│  │   /api/events             → WebUiEventEndpoint              │  │
 │  │                                                             │  │
 │  │  Security:                                                  │  │
 │  │   - Injects API key into proxied requests                  │  │
@@ -148,7 +150,6 @@ zap-webui/
 │  │   - /JSON/core/alerts                                       │  │
 │  │   - /JSON/ascan/scan                                        │  │
 │  │   - /JSON/spider/scan                                       │  │
-│  │   - /websocket (WebSocket endpoint)                         │  │
 │  │   - etc.                                                    │  │
 │  └───────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────┘
@@ -159,11 +160,11 @@ zap-webui/
 **Browser history routing** with clean URLs:
 
 ```
-http://localhost:1337/             → Dashboard
-http://localhost:1337/alerts       → Alerts view
-http://localhost:1337/scan         → Active scan
-http://localhost:1337/spider       → Spider
-http://localhost:1337/settings     → Settings
+http://localhost:9999/             → Dashboard
+http://localhost:9999/alerts       → Alerts view
+http://localhost:9999/scan         → Active scan
+http://localhost:9999/spider       → Spider
+http://localhost:9999/settings     → Settings
 ```
 
 The embedded HTTP server handles SPA fallback routing:
@@ -183,14 +184,14 @@ URL Pattern              → Action
 /assets/*                → Static files (js, css, images, fonts)
 /api/JSON/*              → Proxy to http://localhost:8080/JSON/*
 /api/OTHER/*             → Proxy to http://localhost:8080/OTHER/*
-/api/websocket           → WebSocket proxy to ws://localhost:8080/websocket
+/api/events              → WebSocket endpoint (WebUiEventEndpoint)
 ```
 
 **Benefits:**
 - **Single origin** - No CORS configuration needed
 - **API key security** - Server injects API key into proxied requests; browser never sees it
 - **Consistent workflow** - Production behavior matches development (Vite also proxies)
-- **WebSocket support** - Seamless WebSocket proxying for real-time updates
+- **Native WebSocket** - Real-time event endpoint served by the add-on itself
 - **Simplified frontend** - API client just calls `/api/JSON/...` without origin concerns
 
 ### State Management Strategy
@@ -221,22 +222,22 @@ URL Pattern              → Action
 
 ### Phase 1: Project Setup
 
-- [ ] Restructure repository (move current code to `addon/`)
-- [ ] Create `webui/` with Vite + React + TypeScript
-- [ ] Configure Tailwind CSS and shadcn/ui
-- [ ] Set up root Gradle build orchestration
-- [ ] Configure Vite dev server proxy to ZAP API
+- [x] Restructure repository (move current code to `addon/`)
+- [x] Create `webui/` with Vite + React + TypeScript
+- [x] Configure Tailwind CSS and shadcn/ui
+- [x] Set up root Gradle build orchestration
+- [x] Configure Vite dev server proxy to ZAP API
 
 ### Phase 2: Add-on HTTP Server
 
-- [ ] Implement `WebUiServer.java` using Jetty
-- [ ] Serve static files from `zapHomeFiles/webui/`
-- [ ] Handle MIME types (html, js, css, images, fonts)
-- [ ] Implement SPA fallback routing (non-asset paths → index.html)
-- [ ] Implement HTTP reverse proxy for `/api/*` → ZAP API
-- [ ] Implement WebSocket proxy for `/api/websocket`
-- [ ] Inject API key into proxied requests
-- [ ] Make port configurable via ZAP options
+- [x] Implement `WebUiServer.java` using Jetty
+- [x] Serve static files from `zapHomeFiles/webui/`
+- [x] Handle MIME types (html, js, css, images, fonts)
+- [x] Implement SPA fallback routing (non-asset paths → index.html)
+- [x] Implement HTTP reverse proxy for `/api/*` → ZAP API
+- [x] Implement WebSocket event endpoint at `/api/events`
+- [x] Inject API key into proxied requests
+- [x] Make port configurable via ZAP options
 
 ### Phase 3: Core Frontend Infrastructure
 
@@ -295,7 +296,7 @@ URL Pattern              → Action
 
 3. **Mobile support**: How important is mobile/tablet responsiveness?
 
-4. **Port configuration**: Should the web UI port (1337) be configurable? What's the default?
+4. **Port configuration**: Should the web UI port (9999) be configurable? What's the default?
 
 5. **Multi-user**: Should the web UI support multiple concurrent users, or is it single-user only?
 
