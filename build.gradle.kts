@@ -37,20 +37,6 @@ val lintWebUi by tasks.registering(Exec::class) {
     npmCommand("run", "lint")
 }
 
-val formatCheckWebUi by tasks.registering(Exec::class) {
-    group = webUiBuildTasksGroup
-    description = "Checks code formatting with Prettier"
-    dependsOn(installWebUiDependencies)
-    npmCommand("run", "format:check")
-}
-
-val formatWebUi by tasks.registering(Exec::class) {
-    group = webUiBuildTasksGroup
-    description = "Formats code with Prettier"
-    dependsOn(installWebUiDependencies)
-    npmCommand("run", "format")
-}
-
 val testWebUi by tasks.registering(Exec::class) {
     group = webUiBuildTasksGroup
     description = "Runs unit tests for the web UI"
@@ -95,7 +81,6 @@ val copyWebUiToAddon by tasks.registering(Copy::class) {
 
 tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) {
     dependsOn(lintWebUi)
-    dependsOn(formatCheckWebUi)
     dependsOn(testWebUi)
 }
 
@@ -106,5 +91,15 @@ allprojects {
         kotlinGradle {
             ktlint()
         }
+    }
+}
+
+spotless {
+    format("webui") {
+        target("webui/src/**/*.ts", "webui/src/**/*.tsx", "webui/*.js", "webui/*.ts", "webui/*.json")
+        targetExclude("webui/node_modules/**", "webui/dist/**")
+        prettier(mapOf("prettier" to "3.5.3"))
+            .npmInstallCache(layout.buildDirectory.dir("prettier-cache"))
+            .configFile("webui/.prettierrc")
     }
 }
