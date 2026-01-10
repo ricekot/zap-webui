@@ -134,21 +134,34 @@ function buildRawRequest(request: HttpRequest): string {
   return raw
 }
 
-function parseZapResponse(responseStr: string): Omit<HttpResponse, "time"> {
-  const lines = responseStr.split(/\r?\n/)
+interface ZapMessage {
+  id: string
+  requestHeader: string
+  requestBody: string
+  responseHeader: string
+  responseBody: string
+  rtt?: string
+}
+
+function parseZapResponse(
+  messages: ZapMessage | ZapMessage[]
+): Omit<HttpResponse, "time"> {
+  // Handle both single message and array of messages (redirect chain)
+  // Use the last message in the chain (final response after redirects)
+  const msg = Array.isArray(messages) ? messages[messages.length - 1] : messages
+
+  const lines = msg.responseHeader.split(/\r?\n/)
   const statusLine = lines[0]
   const statusMatch = statusLine.match(/HTTP\/[\d.]+ (\d+)\s*(.*)/)
 
   const statusCode = statusMatch ? parseInt(statusMatch[1], 10) : 0
   const statusText = statusMatch ? statusMatch[2].trim() : ""
 
-  // Find headers and body
+  // Parse headers (skip status line, stop at empty line)
   const headers: Array<{ key: string; value: string }> = []
-  let bodyStartIndex = 1
 
   for (let i = 1; i < lines.length; i++) {
     if (lines[i] === "" || lines[i] === "\r") {
-      bodyStartIndex = i + 1
       break
     }
     const colonIndex = lines[i].indexOf(":")
@@ -160,12 +173,12 @@ function parseZapResponse(responseStr: string): Omit<HttpResponse, "time"> {
     }
   }
 
-  const body = lines.slice(bodyStartIndex).join("\n")
+  const body = msg.responseBody || ""
 
   return {
     statusCode,
     statusText,
-    size: new Blob([responseStr]).size,
+    size: new Blob([msg.responseHeader + body]).size,
     headers,
     body,
   }
