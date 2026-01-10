@@ -84,79 +84,141 @@ function insertNodeIntoTree(
   tree: SiteTreeNode[],
   newNode: RawSiteNode
 ): SiteTreeNode[] {
-  const pathParts = newNode.hierarchicNodeName.split(" - ")
+  // hierarchicNodeName is a URL like "https://example.com/path/to/resource"
+  // Parse it to extract host and path segments
+  let hostPart: string
+  let pathSegments: string[] = []
 
-  // Skip the "Sites" root prefix
-  if (pathParts[0] === "Sites") {
-    pathParts.shift()
+  try {
+    const url = new URL(newNode.hierarchicNodeName)
+    // Host includes protocol for matching (e.g., "https://example.com")
+    hostPart = `${url.protocol}//${url.host}`
+    // Path segments, filtering out empty strings from leading/trailing slashes
+    pathSegments = url.pathname.split("/").filter((s) => s.length > 0)
+  } catch {
+    // Fallback: if not a valid URL, treat the whole thing as the node name
+    // This shouldn't happen based on the data format, but handle it gracefully
+    const transformedNode = transformNode(newNode)
+    return [...tree, transformedNode]
   }
 
-  if (pathParts.length === 0) {
-    // This is a root-level node (shouldn't happen, but handle it)
-    return tree
-  }
-
-  // First part is the host
-  const hostPart = pathParts[0]
-  let hostNode = tree.find((n) => n.name === hostPart || n.id.includes(hostPart))
+  // Find the host node - match by name (example.com) or by checking if URL matches
+  let hostNode = tree.find((n) => {
+    // Try to match the host part of the URL
+    try {
+      const nodeUrl = n.url ? new URL(n.url) : null
+      if (nodeUrl && `${nodeUrl.protocol}//${nodeUrl.host}` === hostPart) {
+        return true
+      }
+    } catch {
+      // Ignore URL parsing errors
+    }
+    // Also check if the node name matches the hostname
+    try {
+      const hostFromPath = new URL(hostPart).host
+      if (n.name === hostFromPath) return true
+    } catch {
+      // Ignore
+    }
+    // Fallback: check by id
+    return n.id === hostPart || n.id.includes(hostPart)
+  })
 
   if (!hostNode) {
     // Need to create a new host node
     const transformedNode = transformNode(newNode)
-    // If this is a host-level node, add it directly
-    if (pathParts.length === 1) {
+    // If this is a host-level node (no path segments), add it directly
+    if (pathSegments.length === 0) {
       return [...tree, transformedNode]
     }
-    // Otherwise create a host node with this as a child
-    hostNode = {
-      id: hostPart,
-      name: hostPart,
-      type: "host",
-      url: newNode.url,
-      children: [],
+    // Otherwise create a host node
+    try {
+      const hostFromUrl = new URL(hostPart).host
+      hostNode = {
+        id: hostPart,
+        name: hostFromUrl,
+        type: "host" as const,
+        url: newNode.url,
+        children: [],
+      }
+    } catch {
+      hostNode = {
+        id: hostPart,
+        name: hostPart,
+        type: "host" as const,
+        url: newNode.url,
+        children: [],
+      }
     }
     tree = [...tree, hostNode]
   }
 
-  if (pathParts.length === 1) {
+  if (pathSegments.length === 0) {
     // This is the host node itself, update it with the new data
     return tree.map((n) =>
-      n.id === hostNode!.id ? { ...n, ...transformNode(newNode) } : n
+      n === hostNode ? { ...n, ...transformNode(newNode) } : n
     )
   }
 
-  // Navigate to the correct parent and insert
+  // Navigate to the correct parent within the host and insert
   const insertAtPath = (
     nodes: SiteTreeNode[],
-    parts: string[],
+    segments: string[],
     depth: number
   ): SiteTreeNode[] => {
-    if (depth >= parts.length - 1) {
+    if (depth >= segments.length - 1) {
       // We're at the parent level, insert the new node
       const transformedNode = transformNode(newNode)
       const existingIndex = nodes.findIndex((n) => n.id === transformedNode.id)
       if (existingIndex >= 0) {
         // Update existing node
         const updated = [...nodes]
-        updated[existingIndex] = { ...updated[existingIndex], ...transformedNode }
+        updated[existingIndex] = {
+          ...updated[existingIndex],
+          ...transformedNode,
+        }
         return updated
       }
       return [...nodes, transformedNode]
     }
 
-    const currentPart = parts[depth]
-    return nodes.map((node) => {
-      if (node.name === currentPart || node.id.includes(currentPart)) {
-        return {
-          ...node,
-          children: insertAtPath(node.children || [], parts, depth + 1),
+    const currentSegment = segments[depth]
+    const existingNode = nodes.find((n) => n.name === currentSegment)
+
+    if (existingNode) {
+      // Node exists, recurse into it
+      return nodes.map((node) => {
+        if (node === existingNode) {
+          return {
+            ...node,
+            children: insertAtPath(node.children || [], segments, depth + 1),
+          }
         }
+        return node
+      })
+    } else {
+      // Intermediate node doesn't exist, create a folder node
+      const folderPath = segments.slice(0, depth + 1).join("/")
+      const newFolder: SiteTreeNode = {
+        id: `${hostPart}/${folderPath}`,
+        name: currentSegment,
+        type: "folder",
+        children: insertAtPath([], segments, depth + 1),
       }
-      return node
-    })
+      return [...nodes, newFolder]
+    }
   }
 
-  return insertAtPath(tree, pathParts, 0)
+  // Insert into the host node's children
+  return tree.map((n) => {
+    if (n === hostNode) {
+      return {
+        ...n,
+        children: insertAtPath(n.children || [], pathSegments, 0),
+      }
+    }
+    return n
+  })
 }
 
 // Module-level state for the sites tree
