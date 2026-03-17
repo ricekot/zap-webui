@@ -19,36 +19,35 @@
  */
 package org.zaproxy.addon.webui;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.time.Duration;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import java.io.InputStream;
+import java.net.Socket;
+import java.util.Map;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.client.api.Request;
-import org.eclipse.jetty.proxy.AsyncProxyServlet;
-import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.servlet.DefaultServlet;
-import org.eclipse.jetty.servlet.ServletContextHandler;
-import org.eclipse.jetty.servlet.ServletHolder;
-import org.eclipse.jetty.websocket.server.JettyWebSocketServlet;
-import org.eclipse.jetty.websocket.server.JettyWebSocketServletFactory;
-import org.eclipse.jetty.websocket.server.config.JettyWebSocketServletContainerInitializer;
-import org.parosproxy.paros.network.HttpHeader;
+import org.parosproxy.paros.network.HttpInputStream;
+import org.parosproxy.paros.network.HttpMalformedHeaderException;
+import org.parosproxy.paros.network.HttpMessage;
+import org.parosproxy.paros.network.HttpOutputStream;
+import org.parosproxy.paros.network.HttpRequestHeader;
+import org.zaproxy.addon.network.ExtensionNetwork;
+import org.zaproxy.addon.network.server.HttpMessageHandler;
+import org.zaproxy.addon.network.server.HttpMessageHandlerContext;
+import org.zaproxy.addon.network.server.Server;
+import org.zaproxy.zap.extension.api.API;
+import org.zaproxy.zap.network.HttpRequestBody;
 
 /**
- * Embedded HTTP server for serving the Web UI. Provides:
+ * HTTP server for serving the Web UI. Uses ZAP's {@link ExtensionNetwork} to create a lightweight
+ * server that:
  *
  * <ul>
- *   <li>Static file serving for the React SPA
- *   <li>SPA fallback routing (non-asset paths return index.html)
- *   <li>Reverse proxy for ZAP API requests (/api/*)
- *   <li>WebSocket endpoint for real-time events (/api/events)
- *   <li>API key injection for proxied requests
+ *   <li>Routes API requests ({@code /JSON/}, {@code /UI/}, {@code /OTHER/}, {@code /script.js}) to
+ *       ZAP's API in-process
+ *   <li>Serves static frontend files from the classpath {@code webui/} resource directory
+ *   <li>Provides SPA fallback routing (non-file paths return {@code index.html})
  * </ul>
  */
 public class WebUiServer {
@@ -58,98 +57,62 @@ public class WebUiServer {
     /** Default port for the Web UI server. */
     public static final int DEFAULT_PORT = 9999;
 
-    /** Path prefix for API proxy requests. */
-    private static final String API_PATH_PREFIX = "/api";
+    /** Classpath resource directory containing the built frontend files. */
+    private static final String RESOURCE_PREFIX = "/webui/";
 
-    /** WebSocket endpoint path for real-time events. */
-    private static final String EVENTS_WEBSOCKET_PATH = "/api/events";
+    /** Default page served for SPA fallback. */
+    private static final String INDEX_HTML = "index.html";
 
-    private final Server server;
-    private final Path webRoot;
-    private final int zapApiPort;
-    private final String zapApiKey;
-    private int port;
-    private HttpClient httpClient;
+    /** Content-type mappings for static file extensions. */
+    private static final Map<String, String> CONTENT_TYPES =
+            Map.ofEntries(
+                    Map.entry(".html", "text/html"),
+                    Map.entry(".css", "text/css"),
+                    Map.entry(".js", "text/javascript"),
+                    Map.entry(".json", "application/json"),
+                    Map.entry(".svg", "image/svg+xml"),
+                    Map.entry(".woff", "font/woff"),
+                    Map.entry(".woff2", "font/woff2"),
+                    Map.entry(".ttf", "font/ttf"),
+                    Map.entry(".ico", "image/x-icon"),
+                    Map.entry(".png", "image/png"),
+                    Map.entry(".jpg", "image/jpeg"),
+                    Map.entry(".gif", "image/gif"),
+                    Map.entry(".map", "application/json"),
+                    Map.entry(".txt", "text/plain"));
+
+    private final ExtensionNetwork extensionNetwork;
+    private final int port;
+    private Server server;
 
     /**
      * Creates a new Web UI server.
      *
-     * @param webRoot Path to the directory containing the built web UI files
-     * @param port Port to listen on
-     * @param zapApiPort Port of the ZAP API server
-     * @param zapApiKey API key for authenticating with ZAP API (can be null if API key is disabled)
+     * @param extensionNetwork the ExtensionNetwork instance for creating the HTTP server
+     * @param port port to listen on
      */
-    public WebUiServer(Path webRoot, int port, int zapApiPort, String zapApiKey) {
-        this.webRoot = webRoot;
+    public WebUiServer(ExtensionNetwork extensionNetwork, int port) {
+        this.extensionNetwork = extensionNetwork;
         this.port = port;
-        this.zapApiPort = zapApiPort;
-        this.zapApiKey = zapApiKey;
-        this.server = new Server(port);
     }
 
     /**
      * Starts the Web UI server.
      *
-     * @throws Exception if the server fails to start
+     * @throws IOException if the server fails to start
      */
-    public void start() throws Exception {
-        if (!Files.exists(webRoot)) {
-            throw new IOException("Web UI directory does not exist: " + webRoot);
-        }
-
-        // Initialize HTTP client for proxy
-        httpClient = new HttpClient();
-        httpClient.start();
-
-        // Create the servlet context
-        ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
-        context.setContextPath("/");
-        context.setResourceBase(webRoot.toString());
-
-        // Initialize WebSocket support
-        JettyWebSocketServletContainerInitializer.configure(
-                context,
-                (servletContext, wsContainer) -> {
-                    wsContainer.setIdleTimeout(Duration.ofMinutes(10));
-                });
-
-        // Add WebSocket event endpoint servlet
-        ServletHolder wsHolder =
-                new ServletHolder("events-websocket", new EventsWebSocketServlet());
-        context.addServlet(wsHolder, EVENTS_WEBSOCKET_PATH);
-
-        // Add API proxy servlet for /api/* (except websocket)
-        ServletHolder proxyHolder = new ServletHolder("api-proxy", new ZapApiProxyServlet());
-        proxyHolder.setInitParameter("proxyTo", "http://localhost:" + zapApiPort);
-        proxyHolder.setInitParameter("prefix", API_PATH_PREFIX);
-        context.addServlet(proxyHolder, API_PATH_PREFIX + "/*");
-
-        // Add SPA servlet for all other paths (serves index.html for non-asset routes)
-        ServletHolder spaHolder = new ServletHolder("spa", new SpaServlet());
-        spaHolder.setInitParameter("resourceBase", webRoot.toString());
-        spaHolder.setInitParameter("dirAllowed", "false");
-        spaHolder.setInitParameter("pathInfoOnly", "true");
-        context.addServlet(spaHolder, "/*");
-
-        server.setHandler(context);
-
-        server.start();
-        this.port = server.getURI().getPort();
-        LOGGER.info("Web UI server started on port {}", this.port);
+    public void start() throws IOException {
+        server = extensionNetwork.createHttpServer(new WebUiHandler());
+        server.start("localhost", port);
+        LOGGER.info("Web UI server started on port {}", port);
     }
 
     /**
      * Stops the Web UI server.
      *
-     * @throws Exception if the server fails to stop
+     * @throws IOException if the server fails to stop
      */
-    public void stop() throws Exception {
-        // Close all WebSocket client sessions
-        WebUiEventEndpoint.closeAllSessions();
-
-        if (httpClient != null) {
-            httpClient.stop();
-        }
+    public void stop() throws IOException {
         if (server != null) {
             server.stop();
             LOGGER.info("Web UI server stopped");
@@ -171,7 +134,7 @@ public class WebUiServer {
      * @return true if the server is running
      */
     public boolean isRunning() {
-        return server != null && server.isRunning();
+        return server != null;
     }
 
     /**
@@ -184,143 +147,175 @@ public class WebUiServer {
     }
 
     /**
-     * Servlet that serves the SPA with fallback routing. Static assets are served directly, while
-     * all other paths return index.html for client-side routing.
+     * Determines if the request is for ZAP's API.
+     *
+     * @param msg the HTTP message
+     * @return true if the path matches an API route
      */
-    private class SpaServlet extends DefaultServlet {
-
-        private static final long serialVersionUID = 1L;
-        private static final String INDEX_HTML = "/index.html";
-
-        @Override
-        protected void doGet(HttpServletRequest request, HttpServletResponse response)
-                throws ServletException, IOException {
-
-            String path = request.getPathInfo();
-            if (path == null) {
-                path = request.getServletPath();
-            }
-
-            // Check if this is a static asset request
-            if (isStaticAsset(path)) {
-                // Serve the static file
-                super.doGet(request, response);
-            } else {
-                // SPA fallback: serve index.html for all non-asset routes
-                request.getRequestDispatcher(INDEX_HTML).forward(request, response);
-            }
-        }
-
-        /**
-         * Determines if the path is for a static asset based on file extension.
-         *
-         * @param path the request path
-         * @return true if this is a static asset request
-         */
-        private boolean isStaticAsset(String path) {
-            if (path == null || path.isEmpty() || path.equals("/")) {
-                return false;
-            }
-
-            // Check if file exists at the path
-            String relativePath = path.startsWith("/") ? path.substring(1) : path;
-            Path filePath = webRoot.resolve(relativePath);
-            if (Files.exists(filePath) && !Files.isDirectory(filePath)) {
-                return true;
-            }
-
-            // Also check common static asset extensions
-            String lowerPath = path.toLowerCase();
-            return lowerPath.endsWith(".js")
-                    || lowerPath.endsWith(".css")
-                    || lowerPath.endsWith(".html")
-                    || lowerPath.endsWith(".htm")
-                    || lowerPath.endsWith(".json")
-                    || lowerPath.endsWith(".map")
-                    || lowerPath.endsWith(".png")
-                    || lowerPath.endsWith(".jpg")
-                    || lowerPath.endsWith(".jpeg")
-                    || lowerPath.endsWith(".gif")
-                    || lowerPath.endsWith(".svg")
-                    || lowerPath.endsWith(".ico")
-                    || lowerPath.endsWith(".woff")
-                    || lowerPath.endsWith(".woff2")
-                    || lowerPath.endsWith(".ttf")
-                    || lowerPath.endsWith(".eot")
-                    || lowerPath.endsWith(".otf")
-                    || lowerPath.endsWith(".webp")
-                    || lowerPath.endsWith(".webm")
-                    || lowerPath.endsWith(".mp4")
-                    || lowerPath.endsWith(".mp3")
-                    || lowerPath.endsWith(".wav")
-                    || lowerPath.endsWith(".txt")
-                    || lowerPath.endsWith(".xml")
-                    || lowerPath.endsWith(".pdf");
-        }
+    static boolean isApiRequest(HttpMessage msg) {
+        String path = msg.getRequestHeader().getURI().getEscapedPath();
+        return path.startsWith("/JSON/")
+                || path.startsWith("/UI/")
+                || path.startsWith("/OTHER/")
+                || path.startsWith("/script.js");
     }
 
-    /** Proxy servlet that forwards API requests to the ZAP API server and injects the API key. */
-    private class ZapApiProxyServlet extends AsyncProxyServlet.Transparent {
+    /**
+     * Forwards an API request to ZAP's API handler in-process.
+     *
+     * @param ctx the handler context
+     * @param msg the HTTP message
+     * @throws IOException if API handling fails
+     */
+    private static void handleApiRequest(HttpMessageHandlerContext ctx, HttpMessage msg)
+            throws IOException {
+        HttpRequestHeader requestHeader = new HttpRequestHeader(msg.getRequestHeader().toString());
+        requestHeader.setSenderAddress(msg.getRequestHeader().getSenderAddress());
+        HttpRequestBody reqBody = msg.getRequestBody();
 
-        private static final long serialVersionUID = 1L;
+        InputStream is = new ByteArrayInputStream(reqBody.getBytes());
+        Socket socket =
+                new Socket() {
+                    @Override
+                    public InputStream getInputStream() throws IOException {
+                        return is;
+                    }
+                };
+        HttpInputStream httpIn = new HttpInputStream(socket);
+        ByteArrayOutputStream os = new ByteArrayOutputStream();
+        HttpOutputStream httpOut = new HttpOutputStream(os);
 
-        @Override
-        protected String rewriteTarget(HttpServletRequest request) {
-            String path = request.getRequestURI();
+        HttpMessage apiResponse =
+                API.getInstance()
+                        .handleApiRequest(requestHeader, httpIn, httpOut, ctx.isRecursive());
 
-            // Skip events WebSocket path - handled by separate servlet
-            if (path.equals(EVENTS_WEBSOCKET_PATH)) {
-                return null;
+        if (apiResponse != null) {
+            if (apiResponse.getRequestHeader().isEmpty()) {
+                ctx.close();
+                return;
             }
-
-            // Remove /api prefix and forward to ZAP API
-            String apiPath = path.substring(API_PATH_PREFIX.length());
-
-            StringBuilder uri = new StringBuilder("http://localhost:");
-            uri.append(zapApiPort);
-            uri.append(apiPath);
-
-            String query = request.getQueryString();
-            if (query != null) {
-                uri.append("?").append(query);
-            }
-
-            return uri.toString();
-        }
-
-        @Override
-        protected void addProxyHeaders(HttpServletRequest clientRequest, Request proxyRequest) {
-            super.addProxyHeaders(clientRequest, proxyRequest);
-
-            // Inject API key if configured
-            if (zapApiKey != null && !zapApiKey.isEmpty()) {
-                proxyRequest.headers(headers -> headers.add(HttpHeader.X_ZAP_API_KEY, zapApiKey));
-            }
-        }
-
-        @Override
-        protected HttpClient newHttpClient() {
-            return httpClient;
-        }
-
-        @Override
-        protected HttpClient createHttpClient() throws ServletException {
-            return httpClient;
+            msg.setResponseHeader(apiResponse.getResponseHeader());
+            msg.setResponseBody(apiResponse.getResponseBody());
+            ctx.overridden();
         }
     }
 
     /**
-     * WebSocket servlet that provides a real-time event endpoint for the Web UI. This is a native
-     * endpoint served by this add-on, not a proxy to ZAP's websocket add-on.
+     * Serves a static file from the classpath resource directory.
+     *
+     * @param msg the HTTP message to populate with the response
+     * @param resourcePath the classpath resource path
+     * @param contentType the content type for the response
+     * @throws IOException if the resource cannot be read
      */
-    private static class EventsWebSocketServlet extends JettyWebSocketServlet {
+    private static void serveResource(HttpMessage msg, String resourcePath, String contentType)
+            throws IOException {
+        try (InputStream is = WebUiServer.class.getResourceAsStream(resourcePath)) {
+            if (is == null) {
+                setNotFoundResponse(msg);
+                return;
+            }
+            byte[] body = is.readAllBytes();
+            msg.setResponseBody(body);
+            msg.setResponseHeader(buildResponseHeader("200 OK", contentType, body.length));
+        }
+    }
 
-        private static final long serialVersionUID = 1L;
+    /**
+     * Sets a 404 Not Found response on the message.
+     *
+     * @param msg the HTTP message
+     */
+    private static void setNotFoundResponse(HttpMessage msg) {
+        try {
+            String body = "404 Not Found";
+            msg.setResponseBody(body);
+            msg.setResponseHeader(
+                    buildResponseHeader("404 Not Found", "text/plain", body.length()));
+        } catch (HttpMalformedHeaderException e) {
+            LOGGER.error("Failed to set 404 response", e);
+        }
+    }
+
+    /**
+     * Builds an HTTP response header string.
+     *
+     * @param status the HTTP status (e.g. "200 OK")
+     * @param contentType the content type
+     * @param contentLength the content length
+     * @return the formatted response header string
+     * @throws HttpMalformedHeaderException if the header is malformed
+     */
+    static String buildResponseHeader(String status, String contentType, int contentLength)
+            throws HttpMalformedHeaderException {
+        StringBuilder sb = new StringBuilder(250);
+        sb.append("HTTP/1.1 ").append(status).append("\r\n");
+        sb.append("Pragma: no-cache\r\n");
+        sb.append("Cache-Control: no-cache, no-store, must-revalidate\r\n");
+        sb.append(
+                "Content-Security-Policy: default-src 'none'; script-src 'self'; connect-src 'self'; "
+                        + "child-src 'self'; img-src 'self' data:; font-src 'self' data:; style-src 'self'\r\n");
+        sb.append("X-Frame-Options: SAMEORIGIN\r\n");
+        sb.append("X-Content-Type-Options: nosniff\r\n");
+        sb.append("Content-Length: ").append(contentLength).append("\r\n");
+        sb.append("Content-Type: ").append(contentType).append("\r\n");
+        return sb.toString();
+    }
+
+    /**
+     * Gets the content type for a file based on its extension.
+     *
+     * @param path the file path
+     * @return the content type, or {@code null} if the extension is not recognized
+     */
+    static String getContentType(String path) {
+        int dotIndex = path.lastIndexOf('.');
+        if (dotIndex < 0) {
+            return null;
+        }
+        String extension = path.substring(dotIndex).toLowerCase();
+        return CONTENT_TYPES.get(extension);
+    }
+
+    /**
+     * Handler that processes all incoming HTTP requests: API routing, static file serving, and SPA
+     * fallback.
+     */
+    private static class WebUiHandler implements HttpMessageHandler {
 
         @Override
-        protected void configure(JettyWebSocketServletFactory factory) {
-            factory.setIdleTimeout(Duration.ofMinutes(10));
-            factory.setCreator((req, resp) -> new WebUiEventEndpoint());
+        public void handleMessage(HttpMessageHandlerContext ctx, HttpMessage msg) {
+            ctx.overridden();
+
+            try {
+                String path = msg.getRequestHeader().getURI().getEscapedPath();
+
+                // Route API requests to ZAP's API handler
+                if (isApiRequest(msg)) {
+                    handleApiRequest(ctx, msg);
+                    return;
+                }
+
+                // Normalize path
+                if (path == null || path.equals("/")) {
+                    path = "/" + INDEX_HTML;
+                }
+
+                // Determine content type from file extension
+                String contentType = getContentType(path);
+
+                if (contentType != null) {
+                    // Known file extension — serve static file
+                    String resourcePath = RESOURCE_PREFIX + path.substring(1);
+                    serveResource(msg, resourcePath, contentType);
+                } else {
+                    // No recognized extension — SPA fallback: serve index.html
+                    serveResource(msg, RESOURCE_PREFIX + INDEX_HTML, "text/html");
+                }
+            } catch (Exception e) {
+                LOGGER.error("Error handling request", e);
+                setNotFoundResponse(msg);
+            }
         }
     }
 }

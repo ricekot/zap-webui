@@ -1,3 +1,4 @@
+import { useRef, useState, useEffect } from "react"
 import CodeMirror from "@uiw/react-codemirror"
 import { json } from "@codemirror/lang-json"
 import { html } from "@codemirror/lang-html"
@@ -14,7 +15,7 @@ interface CodeEditorProps {
   readOnly?: boolean
   placeholder?: string
   className?: string
-  minHeight?: string
+  height?: string
 }
 
 const languageExtensions = {
@@ -24,6 +25,15 @@ const languageExtensions = {
   text: [],
 }
 
+/**
+ * Resolve the active theme by checking whether the document root has the
+ * Tailwind `dark` class. This stays in sync with however the app toggles
+ * dark mode (class-based strategy used by shadcn/ui).
+ */
+function getDocumentTheme(): "light" | "dark" {
+  return document.documentElement.classList.contains("dark") ? "dark" : "light"
+}
+
 export function CodeEditor({
   value,
   onChange,
@@ -31,8 +41,29 @@ export function CodeEditor({
   readOnly = false,
   placeholder,
   className,
-  minHeight = "100px",
+  height = "200px",
 }: CodeEditorProps) {
+  const fillParent = height === "100%"
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [measuredHeight, setMeasuredHeight] = useState<string | undefined>(
+    fillParent ? undefined : height
+  )
+
+  // For fill-parent mode, observe the container's size and pass the
+  // measured pixel height to CodeMirror so it renders at the correct size.
+  useEffect(() => {
+    if (!fillParent) return
+    const el = containerRef.current
+    if (!el) return
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setMeasuredHeight(`${entry.contentRect.height}px`)
+      }
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [fillParent])
+
   const extensions = [
     ...languageExtensions[language],
     EditorView.lineWrapping,
@@ -57,31 +88,40 @@ export function CodeEditor({
   ]
 
   return (
-    <div className={cn("overflow-hidden rounded-md border border-input bg-background", className)}>
-      <CodeMirror
-        value={value}
-        onChange={onChange}
-        extensions={extensions}
-        readOnly={readOnly}
-        placeholder={placeholder}
-        basicSetup={{
-          lineNumbers: true,
-          highlightActiveLineGutter: true,
-          highlightActiveLine: true,
-          foldGutter: true,
-          dropCursor: true,
-          allowMultipleSelections: true,
-          indentOnInput: true,
-          bracketMatching: true,
-          closeBrackets: true,
-          autocompletion: !readOnly,
-          rectangularSelection: true,
-          crosshairCursor: false,
-          highlightSelectionMatches: true,
-        }}
-        style={{ minHeight }}
-        theme="light"
-      />
+    <div
+      ref={containerRef}
+      className={cn(
+        "rounded-md border border-input bg-background",
+        fillParent && "min-h-0 flex-1",
+        className
+      )}
+    >
+      {measuredHeight && (
+        <CodeMirror
+          value={value}
+          onChange={onChange}
+          extensions={extensions}
+          readOnly={readOnly}
+          placeholder={placeholder}
+          basicSetup={{
+            lineNumbers: true,
+            highlightActiveLineGutter: true,
+            highlightActiveLine: true,
+            foldGutter: true,
+            dropCursor: true,
+            allowMultipleSelections: true,
+            indentOnInput: true,
+            bracketMatching: true,
+            closeBrackets: true,
+            autocompletion: !readOnly,
+            rectangularSelection: true,
+            crosshairCursor: false,
+            highlightSelectionMatches: true,
+          }}
+          height={measuredHeight}
+          theme={getDocumentTheme()}
+        />
+      )}
     </div>
   )
 }

@@ -12,14 +12,18 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      // Proxy API requests to ZAP API server
-      "/api": {
+      // Proxy ZAP API requests to ZAP API server during development
+      "/JSON": {
         target: "http://localhost:8080",
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ""),
-        // Note: /api/events WebSocket is served by the add-on's WebUiServer,
-        // not by ZAP's API. During development, you'll need to run the add-on
-        // or mock the WebSocket endpoint.
+      },
+      "/UI": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
+      "/OTHER": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
       },
     },
   },

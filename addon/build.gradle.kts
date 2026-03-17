@@ -38,6 +38,9 @@ zapAddOn {
                 register("commonlib") {
                     version.set(">= 1.36.0 & < 2.0.0")
                 }
+                register("network") {
+                    version.set(">= 0.18.0 & < 1.0.0")
+                }
             }
         }
     }
@@ -56,13 +59,7 @@ tasks.named("generateZapAddOnManifest") {
 
 dependencies {
     compileOnly("org.zaproxy.addon:commonlib:1.36.0")
-
-    // Jetty for embedded HTTP server and WebSocket
-    val jettyVersion = "10.0.24"
-    implementation("org.eclipse.jetty:jetty-server:$jettyVersion")
-    implementation("org.eclipse.jetty:jetty-servlet:$jettyVersion")
-    implementation("org.eclipse.jetty:jetty-proxy:$jettyVersion")
-    implementation("org.eclipse.jetty.websocket:websocket-jetty-server:$jettyVersion")
+    compileOnly("org.zaproxy.addon:network:0.25.0")
 
     // Test dependencies
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
