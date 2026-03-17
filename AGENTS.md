@@ -120,3 +120,10 @@ npx shadcn@latest add <component-name>
 ### Adding a New REST API Endpoint Hook
 
 Add to `webui/src/lib/api/hooks.ts` following the existing patterns using TanStack Query.
+
+## Active Technologies
+- TypeScript 5.9 (strict mode, ES2022 target) for frontend; Java 17 for backend add-on + React 19, Vite 7, Tailwind CSS 3, shadcn/ui (new-york style), CodeMirror 6 (@uiw/react-codemirror), Zustand 5, TanStack React Query 5 (001-request-editor-viewer)
+- N/A (no persistent storage; session state via Zustand in-memory) (001-request-editor-viewer)
+
+## Recent Changes
+- 001-request-editor-viewer: Added TypeScript 5.9 (strict mode, ES2022 target) for frontend; Java 17 for backend add-on + React 19, Vite 7, Tailwind CSS 3, shadcn/ui (new-york style), CodeMirror 6 (@uiw/react-codemirror), Zustand 5, TanStack React Query 5
