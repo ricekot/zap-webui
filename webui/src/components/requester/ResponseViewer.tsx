@@ -58,9 +58,9 @@ export function ResponseViewer({ response, error, isLoading }: ResponseViewerPro
         : "text"
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="flex h-full flex-col gap-4 p-4">
       {/* Status Bar */}
-      <div className="flex items-center gap-4 text-sm">
+      <div className="flex shrink-0 items-center gap-4 text-sm">
         <span className={cn("px-2 py-1 rounded font-mono font-medium", statusColorClass)}>
           {response.statusCode} {response.statusText}
         </span>
@@ -73,16 +73,19 @@ export function ResponseViewer({ response, error, isLoading }: ResponseViewerPro
       </div>
 
       {/* Headers Section */}
-      <HeadersDisplay headers={response.headers} title="Response Headers" defaultExpanded={false} />
+      <div className="shrink-0">
+        <HeadersDisplay headers={response.headers} title="Response Headers" defaultExpanded={false} />
+      </div>
 
       {/* Body */}
-      <div>
-        <p className="text-sm font-medium mb-2">Response Body</p>
+      <div className="flex min-h-0 flex-1 flex-col">
+        <p className="mb-2 shrink-0 text-sm font-medium">Response Body</p>
         <CodeEditor
           value={formatBody(response.body, language)}
           language={language as "json" | "html" | "xml" | "text"}
           readOnly
-          minHeight="200px"
+          height="100%"
+          className="h-full"
         />
       </div>
     </div>

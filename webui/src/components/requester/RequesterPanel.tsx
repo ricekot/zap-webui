@@ -1,9 +1,10 @@
 import { RequestEditor } from "./RequestEditor"
 import { ResponseViewer } from "./ResponseViewer"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable"
 import { useTabState } from "@/stores/tabState"
 import { buildRawRequest, parseZapResponse } from "./requesterUtils"
+import type { ZapMessage } from "@/lib/api/types"
+import { zapAction } from "@/lib/api"
 
 export interface HttpRequest {
   method: string
@@ -60,7 +61,15 @@ export function RequesterPanel() {
 
   const handleSend = async () => {
     if (!request.url) {
-      setError("URL is required")
+      setError("URL is required. Enter a URL to send a request.")
+      return
+    }
+
+    // Validate URL format
+    try {
+      new URL(request.url)
+    } catch {
+      setError("Invalid URL: must include protocol (e.g., https://example.com)")
       return
     }
 
@@ -71,14 +80,21 @@ export function RequesterPanel() {
     const startTime = performance.now()
 
     try {
-      // Use ZAP's sendRequest API
-      const params = new URLSearchParams({
-        request: buildRawRequest(request),
+      let rawRequest: string
+      try {
+        rawRequest = buildRawRequest(request)
+      } catch (err) {
+        setError(
+          err instanceof Error ? `Failed to build request: ${err.message}` : "Failed to build request"
+        )
+        return
+      }
+
+      // Use ZAP's sendRequest API via the centralized API client
+      const data = await zapAction<{ sendRequest: ZapMessage | ZapMessage[] }>("core", "sendRequest", {
+        request: rawRequest,
         followRedirects: "true",
       })
-
-      const res = await fetch(`/api/JSON/core/action/sendRequest/?${params}`)
-      const data = await res.json()
 
       const endTime = performance.now()
 
@@ -89,8 +105,6 @@ export function RequesterPanel() {
           ...parsed,
           time: Math.round(endTime - startTime),
         })
-      } else if (data.code && data.message) {
-        setError(`${data.code}: ${data.message}`)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Request failed")
@@ -101,30 +115,22 @@ export function RequesterPanel() {
 
   return (
     <ResizablePanelGroup
-      orientation="vertical"
+      orientation="horizontal"
       className="h-full"
       id="requester-layout"
       defaultLayout={{ "request-editor": 50, "response-viewer": 50 }}
     >
       <ResizablePanel id="request-editor" defaultSize="50%" minSize="20%">
-        <ScrollArea className="h-full">
-          <RequestEditor
-            request={request}
-            onChange={setRequest}
-            onSend={handleSend}
-            isLoading={isLoading}
-          />
-        </ScrollArea>
+        <RequestEditor
+          request={request}
+          onChange={setRequest}
+          onSend={handleSend}
+          isLoading={isLoading}
+        />
       </ResizablePanel>
       <ResizableHandle withHandle />
       <ResizablePanel id="response-viewer" defaultSize="50%" minSize="20%">
-        {response ? (
-          <ScrollArea className="h-full">
-            <ResponseViewer response={response} error={error} isLoading={isLoading} />
-          </ScrollArea>
-        ) : (
-          <ResponseViewer response={response} error={error} isLoading={isLoading} />
-        )}
+        <ResponseViewer response={response} error={error} isLoading={isLoading} />
       </ResizablePanel>
     </ResizablePanelGroup>
   )

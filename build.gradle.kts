@@ -10,23 +10,23 @@ val os: OperatingSystem = DefaultNativePlatform.getCurrentOperatingSystem()
 val webUiBuildDir = layout.buildDirectory.dir("webui")
 val webUiBuildTasksGroup = "ZAP Web UI Build"
 
-fun Exec.npmCommand(vararg args: String) {
+fun Exec.bunCommand(vararg args: String) {
     workingDir = file("webui")
-    val npmArgs = listOf("npm") + args.toList()
+    val bunArgs = listOf("bun") + args.toList()
     if (os.isWindows) {
-        commandLine(listOf("cmd", "/c") + npmArgs)
+        commandLine(listOf("cmd", "/c") + bunArgs)
     } else {
-        commandLine(listOf("/bin/sh", "-c", npmArgs.joinToString(" ")))
+        commandLine(listOf("/bin/sh", "-c", bunArgs.joinToString(" ")))
     }
 }
 
 val installWebUiDependencies by tasks.registering(Exec::class) {
     group = webUiBuildTasksGroup
-    description = "Installs npm dependencies for the web UI"
-    npmCommand("ci")
+    description = "Installs bun dependencies for the web UI"
+    bunCommand("install", "--frozen-lockfile")
 
     inputs.file("webui/package.json")
-    inputs.file("webui/package-lock.json")
+    inputs.file("webui/bun.lock")
     outputs.dir("webui/node_modules")
 }
 
@@ -34,14 +34,14 @@ val lintWebUi by tasks.registering(Exec::class) {
     group = webUiBuildTasksGroup
     description = "Runs ESLint on the web UI"
     dependsOn(installWebUiDependencies)
-    npmCommand("run", "lint")
+    bunCommand("run", "lint")
 }
 
 val testWebUi by tasks.registering(Exec::class) {
     group = webUiBuildTasksGroup
     description = "Runs unit tests for the web UI"
     dependsOn(installWebUiDependencies)
-    npmCommand("test")
+    bunCommand("run", "test")
 
     inputs.dir("webui/src")
     inputs.file("webui/vitest.config.ts")
@@ -51,14 +51,14 @@ val lintFixWebUi by tasks.registering(Exec::class) {
     group = webUiBuildTasksGroup
     description = "Runs ESLint on the web UI with auto-fix"
     dependsOn(installWebUiDependencies)
-    npmCommand("run", "lint", "--", "--fix")
+    bunCommand("run", "lint", "--", "--fix")
 }
 
 val buildWebUi by tasks.registering(Exec::class) {
     group = webUiBuildTasksGroup
     description = "Builds the web UI for production"
     dependsOn(installWebUiDependencies)
-    npmCommand("run", "build")
+    bunCommand("run", "build")
 
     inputs.dir("webui/src")
     inputs.file("webui/index.html")

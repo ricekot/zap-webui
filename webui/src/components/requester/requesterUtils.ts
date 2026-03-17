@@ -1,13 +1,7 @@
 import type { HttpRequest, HttpResponse } from "./RequesterPanel"
+import type { ZapMessage } from "@/lib/api/types"
 
-export interface ZapMessage {
-  id: string
-  requestHeader: string
-  requestBody: string
-  responseHeader: string
-  responseBody: string
-  rtt?: string
-}
+export type { ZapMessage }
 
 /**
  * Builds a raw HTTP request string from the HttpRequest object
@@ -16,18 +10,38 @@ export interface ZapMessage {
 export function buildRawRequest(request: HttpRequest): string {
   const url = new URL(request.url)
 
-  const headers = request.headers
-    .filter((h) => h.enabled && h.key)
-    .map((h) => `${h.key}: ${h.value}`)
-    .join("\r\n")
+  const enabledHeaders = request.headers.filter((h) => h.enabled && h.key)
+
+  const headerLines = enabledHeaders.map((h) => `${h.key}: ${h.value}`).join("\r\n")
 
   const hostHeader = `Host: ${url.host}`
-  const allHeaders = headers ? `${hostHeader}\r\n${headers}` : hostHeader
+  let allHeaders = headerLines ? `${hostHeader}\r\n${headerLines}` : hostHeader
+
+  const hasBody = request.body && ["POST", "PUT", "PATCH"].includes(request.method)
+
+  // Auto-add Content-Type if the request has a body and no Content-Type header is set
+  if (hasBody) {
+    const hasContentType = enabledHeaders.some(
+      (h) => h.key.toLowerCase() === "content-type"
+    )
+    if (!hasContentType) {
+      allHeaders += "\r\nContent-Type: application/json"
+    }
+
+    // Auto-add Content-Length for the body
+    const bodyBytes = new TextEncoder().encode(request.body).length
+    const hasContentLength = enabledHeaders.some(
+      (h) => h.key.toLowerCase() === "content-length"
+    )
+    if (!hasContentLength) {
+      allHeaders += `\r\nContent-Length: ${bodyBytes}`
+    }
+  }
 
   // Use full URL (including scheme) so ZAP knows whether to use http or https
   let raw = `${request.method} ${request.url} HTTP/1.1\r\n${allHeaders}\r\n\r\n`
 
-  if (request.body && ["POST", "PUT", "PATCH"].includes(request.method)) {
+  if (hasBody) {
     raw += request.body
   }
 

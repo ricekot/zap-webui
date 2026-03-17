@@ -1,12 +1,13 @@
 /**
  * Base API client for ZAP API
  *
- * All requests go to /api/JSON/* or /api/OTHER/* which are proxied to ZAP's API.
- * The WebUiServer (in production) or Vite dev server (in development) handles
- * the proxying and API key injection.
+ * All requests go directly to ZAP native API paths (/JSON/*, /UI/*, /OTHER/*).
+ * In production, the WebUiServer handles these requests in-process via
+ * API.getInstance().handleApiRequest(). In development, the Vite dev server
+ * proxies these paths to ZAP's API on localhost:8080.
  */
 
-const API_BASE = "/api"
+const API_BASE = ""
 
 export interface ZapApiResponse<T = unknown> {
   Result?: T

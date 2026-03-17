@@ -110,6 +110,48 @@ describe("buildRawRequest", () => {
     expect(result).toContain('{"updated": true}')
   })
 
+  it("auto-adds Content-Type and Content-Length for POST with body and no explicit Content-Type", () => {
+    const request: HttpRequest = {
+      method: "POST",
+      url: "https://api.example.com/data",
+      headers: [],
+      body: '{"key": "value"}',
+    }
+
+    const result = buildRawRequest(request)
+
+    expect(result).toContain("Content-Type: application/json")
+    expect(result).toContain("Content-Length: 16")
+  })
+
+  it("does not auto-add Content-Type when user provides one", () => {
+    const request: HttpRequest = {
+      method: "POST",
+      url: "https://api.example.com/data",
+      headers: [{ key: "Content-Type", value: "text/xml", enabled: true }],
+      body: "<root/>",
+    }
+
+    const result = buildRawRequest(request)
+
+    expect(result).toContain("Content-Type: text/xml")
+    expect(result).not.toContain("Content-Type: application/json")
+  })
+
+  it("does not auto-add Content-Type for GET even with body field populated", () => {
+    const request: HttpRequest = {
+      method: "GET",
+      url: "https://example.com/",
+      headers: [],
+      body: "ignored body",
+    }
+
+    const result = buildRawRequest(request)
+
+    expect(result).not.toContain("Content-Type")
+    expect(result).not.toContain("Content-Length")
+  })
+
   it("builds PATCH request with body", () => {
     const request: HttpRequest = {
       method: "PATCH",
@@ -149,6 +191,99 @@ describe("buildRawRequest", () => {
     const result = buildRawRequest(request)
 
     expect(result).not.toContain("body content")
+  })
+
+  it("does not include body for HEAD request", () => {
+    const request: HttpRequest = {
+      method: "HEAD",
+      url: "https://example.com/resource",
+      headers: [],
+      body: "should be ignored",
+    }
+
+    const result = buildRawRequest(request)
+
+    expect(result).toContain("HEAD https://example.com/resource HTTP/1.1")
+    expect(result).not.toContain("should be ignored")
+    expect(result.endsWith("\r\n\r\n")).toBe(true)
+  })
+
+  it("does not include body for OPTIONS request", () => {
+    const request: HttpRequest = {
+      method: "OPTIONS",
+      url: "https://example.com/api",
+      headers: [],
+      body: "should be ignored",
+    }
+
+    const result = buildRawRequest(request)
+
+    expect(result).toContain("OPTIONS https://example.com/api HTTP/1.1")
+    expect(result).not.toContain("should be ignored")
+    expect(result.endsWith("\r\n\r\n")).toBe(true)
+  })
+
+  it("handles empty header list", () => {
+    const request: HttpRequest = {
+      method: "GET",
+      url: "https://example.com/",
+      headers: [],
+      body: "",
+    }
+
+    const result = buildRawRequest(request)
+
+    // Should still have Host header
+    expect(result).toContain("Host: example.com")
+    expect(result).toBe("GET https://example.com/ HTTP/1.1\r\nHost: example.com\r\n\r\n")
+  })
+
+  it("handles all headers disabled", () => {
+    const request: HttpRequest = {
+      method: "GET",
+      url: "https://example.com/",
+      headers: [
+        { key: "Accept", value: "application/json", enabled: false },
+        { key: "Authorization", value: "Bearer token", enabled: false },
+      ],
+      body: "",
+    }
+
+    const result = buildRawRequest(request)
+
+    // Only Host header should be present
+    expect(result).toContain("Host: example.com")
+    expect(result).not.toContain("Accept")
+    expect(result).not.toContain("Authorization")
+    expect(result).toBe("GET https://example.com/ HTTP/1.1\r\nHost: example.com\r\n\r\n")
+  })
+
+  it("handles mixed enabled and disabled headers", () => {
+    const request: HttpRequest = {
+      method: "POST",
+      url: "https://example.com/api",
+      headers: [
+        { key: "Content-Type", value: "application/json", enabled: true },
+        { key: "X-Debug", value: "true", enabled: false },
+        { key: "Accept", value: "*/*", enabled: true },
+        { key: "", value: "empty-key", enabled: true },
+        { key: "X-Disabled-Too", value: "nope", enabled: false },
+      ],
+      body: '{"data": 1}',
+    }
+
+    const result = buildRawRequest(request)
+
+    // Enabled headers with non-empty keys should be present
+    expect(result).toContain("Content-Type: application/json")
+    expect(result).toContain("Accept: */*")
+    // Disabled headers should be excluded
+    expect(result).not.toContain("X-Debug")
+    expect(result).not.toContain("X-Disabled-Too")
+    // Empty-key headers should be excluded
+    expect(result).not.toContain("empty-key")
+    // Body should be present for POST
+    expect(result).toContain('{"data": 1}')
   })
 
   it("handles URL with port", () => {

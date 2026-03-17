@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import {
@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils"
 import type { HttpRequest } from "./RequesterPanel"
 
 const HTTP_METHODS = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]
+const BODY_METHODS = ["POST", "PUT", "PATCH"]
 
 const methodColors: Record<string, string> = {
   GET: "text-green-600 bg-green-50",
@@ -33,6 +34,26 @@ interface RequestEditorProps {
 
 export function RequestEditor({ request, onChange, onSend, isLoading }: RequestEditorProps) {
   const [activeSection, setActiveSection] = useState<"headers" | "body">("headers")
+  const hasBody = BODY_METHODS.includes(request.method)
+
+  // If on body tab but method doesn't support body, show headers instead
+  const effectiveSection = !hasBody && activeSection === "body" ? "headers" : activeSection
+
+  // Global Ctrl/Cmd+Enter handler to work even when focus is inside CodeMirror
+  const handleGlobalKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault()
+        onSend()
+      }
+    },
+    [onSend]
+  )
+
+  useEffect(() => {
+    document.addEventListener("keydown", handleGlobalKeyDown)
+    return () => document.removeEventListener("keydown", handleGlobalKeyDown)
+  }, [handleGlobalKeyDown])
 
   const updateHeader = (
     index: number,
@@ -59,17 +80,10 @@ export function RequestEditor({ request, onChange, onSend, isLoading }: RequestE
     })
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-      e.preventDefault()
-      onSend()
-    }
-  }
-
   return (
-    <div className="p-4 space-y-4" onKeyDown={handleKeyDown}>
+    <div className="flex h-full flex-col gap-4 p-4">
       {/* URL Bar */}
-      <div className="flex gap-2">
+      <div className="flex shrink-0 gap-2">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -111,11 +125,11 @@ export function RequestEditor({ request, onChange, onSend, isLoading }: RequestE
       </div>
 
       {/* Section Tabs */}
-      <div className="flex gap-4 border-b">
+      <div className="flex shrink-0 gap-4 border-b">
         <button
           className={cn(
             "pb-2 text-sm font-medium border-b-2 transition-colors",
-            activeSection === "headers"
+            effectiveSection === "headers"
               ? "border-primary text-foreground"
               : "border-transparent text-muted-foreground hover:text-foreground"
           )}
@@ -128,22 +142,24 @@ export function RequestEditor({ request, onChange, onSend, isLoading }: RequestE
             </span>
           )}
         </button>
-        <button
-          className={cn(
-            "pb-2 text-sm font-medium border-b-2 transition-colors",
-            activeSection === "body"
-              ? "border-primary text-foreground"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          )}
-          onClick={() => setActiveSection("body")}
-        >
-          Body
-        </button>
+        {hasBody && (
+          <button
+            className={cn(
+              "pb-2 text-sm font-medium border-b-2 transition-colors",
+              effectiveSection === "body"
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+            onClick={() => setActiveSection("body")}
+          >
+            Body
+          </button>
+        )}
       </div>
 
       {/* Headers Section */}
-      {activeSection === "headers" && (
-        <div className="space-y-2">
+      {effectiveSection === "headers" && (
+        <div className="min-h-0 flex-1 space-y-2 overflow-auto">
           {request.headers.map((header, index) => (
             <div key={index} className="flex gap-2 items-center">
               <input
@@ -182,14 +198,17 @@ export function RequestEditor({ request, onChange, onSend, isLoading }: RequestE
       )}
 
       {/* Body Section */}
-      {activeSection === "body" && (
-        <CodeEditor
-          value={request.body}
-          onChange={(value) => onChange({ ...request, body: value })}
-          language="json"
-          placeholder="Request body (JSON, XML, or plain text)"
-          minHeight="200px"
-        />
+      {hasBody && effectiveSection === "body" && (
+        <div className="min-h-0 flex-1">
+          <CodeEditor
+            value={request.body}
+            onChange={(value) => onChange({ ...request, body: value })}
+            language="json"
+            placeholder="Request body (JSON, XML, or plain text)"
+            height="100%"
+            className="h-full"
+          />
+        </div>
       )}
     </div>
   )
