@@ -7,7 +7,7 @@ An experimental new UI for ZAP using web technologies.
 ```
 zap-webui/
 ├── addon/          # ZAP add-on (Gradle/Java project)
-├── webui/          # React frontend (npm/Vite project)
+├── webui/          # React frontend (bun/Vite project)
 ├── docs/           # Documentation and plans
 ├── build.gradle.kts    # Root Gradle build orchestration
 └── settings.gradle.kts # Gradle settings
@@ -16,8 +16,7 @@ zap-webui/
 ## Prerequisites
 
 - **Java 17** or later (for building the ZAP add-on)
-- **Node.js 18** or later (for building the web UI)
-- **npm** (comes with Node.js)
+- **Bun** (for building the web UI)
 
 ## Development Setup
 
@@ -30,13 +29,13 @@ For rapid frontend development with hot module replacement:
 2. **Install dependencies** (first time only):
    ```bash
    cd webui
-   npm install
+   bun install
    ```
 
 3. **Start the development server**:
    ```bash
    cd webui
-   npm run dev
+   bun run dev
    ```
 
 4. **Open** http://localhost:5173 in your browser
@@ -52,7 +51,7 @@ To build the complete ZAP add-on including the web UI:
 ```
 
 This will:
-1. Install npm dependencies
+1. Install bun dependencies
 2. Build the React app for production
 3. Copy the built assets to the add-on
 4. Build the ZAP add-on JAR/ZAP file
@@ -76,10 +75,10 @@ Run these from the `webui/` directory:
 
 | Script | Description |
 |--------|-------------|
-| `npm run dev` | Start development server with HMR |
-| `npm run build` | Build for production |
-| `npm run preview` | Preview production build locally |
-| `npm run lint` | Run ESLint |
+| `bun run dev` | Start development server with HMR |
+| `bun run build` | Build for production |
+| `bun run preview` | Preview production build locally |
+| `bun run lint` | Run ESLint |
 
 ## Technology Stack
 
@@ -100,14 +99,14 @@ This project uses [shadcn/ui](https://ui.shadcn.com/) for UI components. To add 
 
 ```bash
 cd webui
-npx shadcn@latest add <component-name>
+bunx shadcn@latest add <component-name>
 ```
 
 For example:
 ```bash
-npx shadcn@latest add card
-npx shadcn@latest add dialog
-npx shadcn@latest add table
+bunx shadcn@latest add card
+bunx shadcn@latest add dialog
+bunx shadcn@latest add table
 ```
 
 ## License
