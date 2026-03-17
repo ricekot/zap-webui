@@ -85,16 +85,22 @@ export function RequesterPanel() {
         rawRequest = buildRawRequest(request)
       } catch (err) {
         setError(
-          err instanceof Error ? `Failed to build request: ${err.message}` : "Failed to build request"
+          err instanceof Error
+            ? `Failed to build request: ${err.message}`
+            : "Failed to build request"
         )
         return
       }
 
       // Use ZAP's sendRequest API via the centralized API client
-      const data = await zapAction<{ sendRequest: ZapMessage | ZapMessage[] }>("core", "sendRequest", {
-        request: rawRequest,
-        followRedirects: "true",
-      })
+      const data = await zapAction<{ sendRequest: ZapMessage | ZapMessage[] }>(
+        "core",
+        "sendRequest",
+        {
+          request: rawRequest,
+          followRedirects: "true",
+        }
+      )
 
       const endTime = performance.now()
 

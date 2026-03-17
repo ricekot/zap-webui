@@ -74,7 +74,11 @@ export function ResponseViewer({ response, error, isLoading }: ResponseViewerPro
 
       {/* Headers Section */}
       <div className="shrink-0">
-        <HeadersDisplay headers={response.headers} title="Response Headers" defaultExpanded={false} />
+        <HeadersDisplay
+          headers={response.headers}
+          title="Response Headers"
+          defaultExpanded={false}
+        />
       </div>
 
       {/* Body */}

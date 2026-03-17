@@ -79,9 +79,17 @@ val copyWebUiToAddon by tasks.registering(Copy::class) {
     into(webUiBuildDir.map { it.dir("webui") })
 }
 
+val formatCheckWebUi by tasks.registering(Exec::class) {
+    group = webUiBuildTasksGroup
+    description = "Checks formatting of the web UI with Prettier"
+    dependsOn(installWebUiDependencies)
+    bunCommand("run", "format:check")
+}
+
 tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) {
     dependsOn(lintWebUi)
     dependsOn(testWebUi)
+    dependsOn(formatCheckWebUi)
 }
 
 allprojects {
@@ -91,15 +99,5 @@ allprojects {
         kotlinGradle {
             ktlint()
         }
-    }
-}
-
-spotless {
-    format("webui") {
-        target("webui/src/**/*.ts", "webui/src/**/*.tsx", "webui/*.js", "webui/*.ts", "webui/*.json")
-        targetExclude("webui/node_modules/**", "webui/dist/**")
-        prettier(mapOf("prettier" to "3.5.3"))
-            .npmInstallCache(layout.buildDirectory.dir("prettier-cache"))
-            .configFile("webui/.prettierrc")
     }
 }

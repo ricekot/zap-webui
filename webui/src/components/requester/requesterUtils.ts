@@ -21,18 +21,14 @@ export function buildRawRequest(request: HttpRequest): string {
 
   // Auto-add Content-Type if the request has a body and no Content-Type header is set
   if (hasBody) {
-    const hasContentType = enabledHeaders.some(
-      (h) => h.key.toLowerCase() === "content-type"
-    )
+    const hasContentType = enabledHeaders.some((h) => h.key.toLowerCase() === "content-type")
     if (!hasContentType) {
       allHeaders += "\r\nContent-Type: application/json"
     }
 
     // Auto-add Content-Length for the body
     const bodyBytes = new TextEncoder().encode(request.body).length
-    const hasContentLength = enabledHeaders.some(
-      (h) => h.key.toLowerCase() === "content-length"
-    )
+    const hasContentLength = enabledHeaders.some((h) => h.key.toLowerCase() === "content-length")
     if (!hasContentLength) {
       allHeaders += `\r\nContent-Length: ${bodyBytes}`
     }
