@@ -1,59 +1,24 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { CodeEditor } from "@/components/editor/CodeEditor"
-import { ChevronDown, Plus, Trash2, Send, Loader2 } from "lucide-react"
+import { Plus, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { HttpRequest } from "./types"
 
-const HTTP_METHODS = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]
 const BODY_METHODS = ["POST", "PUT", "PATCH"]
-
-const methodColors: Record<string, string> = {
-  GET: "text-green-600 bg-green-50",
-  POST: "text-blue-600 bg-blue-50",
-  PUT: "text-orange-600 bg-orange-50",
-  DELETE: "text-red-600 bg-red-50",
-  PATCH: "text-purple-600 bg-purple-50",
-  HEAD: "text-gray-600 bg-gray-50",
-  OPTIONS: "text-gray-600 bg-gray-50",
-}
 
 interface RequestEditorProps {
   request: HttpRequest
   onChange: (request: HttpRequest) => void
-  onSend: () => void
-  isLoading: boolean
 }
 
-export function RequestEditor({ request, onChange, onSend, isLoading }: RequestEditorProps) {
+export function RequestEditor({ request, onChange }: RequestEditorProps) {
   const [activeSection, setActiveSection] = useState<"headers" | "body">("headers")
   const hasBody = BODY_METHODS.includes(request.method)
 
   // If on body tab but method doesn't support body, show headers instead
   const effectiveSection = !hasBody && activeSection === "body" ? "headers" : activeSection
-
-  // Global Ctrl/Cmd+Enter handler to work even when focus is inside CodeMirror
-  const handleGlobalKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault()
-        onSend()
-      }
-    },
-    [onSend]
-  )
-
-  useEffect(() => {
-    document.addEventListener("keydown", handleGlobalKeyDown)
-    return () => document.removeEventListener("keydown", handleGlobalKeyDown)
-  }, [handleGlobalKeyDown])
 
   const updateHeader = (
     index: number,
@@ -82,48 +47,6 @@ export function RequestEditor({ request, onChange, onSend, isLoading }: RequestE
 
   return (
     <div className="flex h-full flex-col gap-4 p-4">
-      {/* URL Bar */}
-      <div className="flex shrink-0 gap-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              className={cn("w-28 justify-between font-mono", methodColors[request.method])}
-            >
-              {request.method}
-              <ChevronDown className="h-4 w-4 opacity-50" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            {HTTP_METHODS.map((method) => (
-              <DropdownMenuItem
-                key={method}
-                onClick={() => onChange({ ...request, method })}
-                className={cn("font-mono", methodColors[method])}
-              >
-                {method}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <Input
-          placeholder="Enter URL (e.g., https://example.com/api)"
-          value={request.url}
-          onChange={(e) => onChange({ ...request, url: e.target.value })}
-          className="flex-1 font-mono"
-        />
-
-        <Button onClick={onSend} disabled={isLoading || !request.url}>
-          {isLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-          ) : (
-            <Send className="h-4 w-4 mr-2" />
-          )}
-          Send
-        </Button>
-      </div>
-
       {/* Section Tabs */}
       <div className="flex shrink-0 gap-4 border-b">
         <button

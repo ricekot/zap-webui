@@ -23,11 +23,9 @@ vi.mock("./RequestEditor", () => ({
   RequestEditor: ({
     request,
     onChange,
-    onSend,
   }: {
     request: HttpRequest
     onChange: (request: HttpRequest) => void
-    onSend: () => void
   }) => (
     <div>
       <p data-testid="editor-method">{request.method}</p>
@@ -39,9 +37,6 @@ vi.mock("./RequestEditor", () => ({
         onClick={() => onChange({ ...request, url: `${request.url}/edited`, body: "edited" })}
       >
         mutate-request
-      </button>
-      <button type="button" onClick={onSend}>
-        send-request
       </button>
     </div>
   ),
@@ -94,7 +89,7 @@ describe("RequesterPanel replay flow", () => {
     render(<RequesterPanel />)
 
     await user.click(screen.getByRole("button", { name: /https:\/\/example.com\/replay/i }))
-    await user.click(screen.getByRole("button", { name: "send-request" }))
+    await user.click(screen.getByRole("button", { name: "Send" }))
 
     await waitFor(() => {
       expect(useRequestHistoryStore.getState().entries).toHaveLength(2)
