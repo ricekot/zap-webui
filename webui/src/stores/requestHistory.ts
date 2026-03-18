@@ -1,6 +1,6 @@
 import { create } from "zustand"
 import { createJSONStorage, persist } from "zustand/middleware"
-import type { HttpRequest } from "@/components/requester/types"
+import type { HttpRequest, HttpResponse } from "@/components/requester/types"
 
 export const REQUEST_HISTORY_STORAGE_KEY = "zap-request-history"
 export const MAX_HISTORY_ENTRIES = 50
@@ -17,6 +17,7 @@ export interface RequestHistoryEntry {
   url: string
   headers: RequestHistoryHeader[]
   body: string
+  response?: HttpResponse | null
 }
 
 export interface RequestHistoryCollection {
@@ -27,6 +28,7 @@ export interface RequestHistoryCollection {
 interface RequestHistoryStore extends RequestHistoryCollection {
   appendRequest: (request: HttpRequest) => RequestHistoryEntry
   appendEntry: (entry: RequestHistoryEntry) => void
+  updateEntryResponse: (id: string, response: HttpResponse | null) => void
   clearHistory: () => void
 }
 
@@ -42,6 +44,12 @@ export function cloneEntry(entry: RequestHistoryEntry): RequestHistoryEntry {
   return {
     ...entry,
     headers: entry.headers.map((header) => ({ ...header })),
+    response: entry.response
+      ? {
+          ...entry.response,
+          headers: entry.response.headers.map((header) => ({ ...header })),
+        }
+      : entry.response,
   }
 }
 
@@ -65,6 +73,7 @@ export function createRequestHistoryEntry(
       .filter((header) => header.enabled && header.key)
       .map((header) => ({ name: header.key, value: header.value })),
     body: request.body,
+    response: null,
   }
 }
 
@@ -86,6 +95,12 @@ export const useRequestHistoryStore = create<RequestHistoryStore>()(
         const safeEntry = cloneEntry(entry)
         set((state) => ({
           entries: trimHistoryEntries([safeEntry, ...state.entries], state.maxEntries),
+        }))
+      },
+
+      updateEntryResponse: (id, response) => {
+        set((state) => ({
+          entries: state.entries.map((entry) => (entry.id === id ? { ...entry, response } : entry)),
         }))
       },
 

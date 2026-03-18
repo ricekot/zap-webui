@@ -1,6 +1,7 @@
+import { useState } from "react"
 import { CodeEditor } from "@/components/editor/CodeEditor"
-import { HeadersDisplay } from "@/components/shared/HeadersDisplay"
 import { Loader2 } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import type { HttpResponse } from "./types"
 
@@ -11,6 +12,8 @@ interface ResponseViewerProps {
 }
 
 export function ResponseViewer({ response, error, isLoading }: ResponseViewerProps) {
+  const [activeSection, setActiveSection] = useState<"headers" | "body">("body")
+
   if (isLoading) {
     return (
       <div className="h-full flex items-center justify-center text-muted-foreground">
@@ -59,39 +62,100 @@ export function ResponseViewer({ response, error, isLoading }: ResponseViewerPro
 
   return (
     <div className="flex h-full flex-col gap-4 p-4">
-      {/* Status Bar */}
-      <div className="flex shrink-0 items-center gap-4 text-sm">
-        <span className={cn("px-2 py-1 rounded font-mono font-medium", statusColorClass)}>
-          {response.statusCode} {response.statusText}
-        </span>
-        <span className="text-muted-foreground">
-          <span className="font-medium">{response.time}ms</span> time
-        </span>
-        <span className="text-muted-foreground">
-          <span className="font-medium">{formatBytes(response.size)}</span> size
-        </span>
+      {/* Section Tabs & Status Bar */}
+      <div className="flex shrink-0 items-center justify-between border-b">
+        <div className="flex gap-4">
+          <button
+            className={cn(
+              "pb-2 text-sm font-medium border-b-2 transition-colors",
+              activeSection === "headers"
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+            onClick={() => setActiveSection("headers")}
+          >
+            Headers
+            {response.headers.length > 0 && (
+              <span className="ml-1 text-xs text-muted-foreground">
+                ({response.headers.length})
+              </span>
+            )}
+          </button>
+          <button
+            className={cn(
+              "pb-2 text-sm font-medium border-b-2 transition-colors",
+              activeSection === "body"
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+            onClick={() => setActiveSection("body")}
+          >
+            Body
+          </button>
+        </div>
+
+        <div className="flex items-center gap-3 pb-2 text-xs">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span
+                  className={cn(
+                    "rounded px-1.5 py-0.5 font-mono text-xs font-medium",
+                    statusColorClass
+                  )}
+                >
+                  {response.statusCode}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                {response.statusCode} {response.statusText}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <span className="text-muted-foreground hidden sm:inline">
+            <span className="font-medium">{response.time}ms</span>
+          </span>
+          <span className="text-muted-foreground hidden sm:inline">
+            <span className="font-medium">{formatBytes(response.size)}</span>
+          </span>
+        </div>
       </div>
 
       {/* Headers Section */}
-      <div className="shrink-0">
-        <HeadersDisplay
-          headers={response.headers}
-          title="Response Headers"
-          defaultExpanded={false}
-        />
-      </div>
+      {activeSection === "headers" && (
+        <div className="min-h-0 flex-1 overflow-auto">
+          {response.headers.length === 0 ? (
+            <p className="text-sm text-muted-foreground p-4">No headers</p>
+          ) : (
+            <div className="space-y-2">
+              {response.headers.map((header, index) => (
+                <div
+                  key={index}
+                  className="flex gap-2 text-sm font-mono border-b border-border/50 pb-2 last:border-0"
+                >
+                  <span className="font-medium text-foreground shrink-0 w-1/3 break-words">
+                    {header.key}:
+                  </span>
+                  <span className="text-muted-foreground break-all w-2/3">{header.value}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
-      {/* Body */}
-      <div className="flex min-h-0 flex-1 flex-col">
-        <p className="mb-2 shrink-0 text-sm font-medium">Response Body</p>
-        <CodeEditor
-          value={formatBody(response.body, language)}
-          language={language as "json" | "html" | "xml" | "text"}
-          readOnly
-          height="100%"
-          className="h-full"
-        />
-      </div>
+      {/* Body Section */}
+      {activeSection === "body" && (
+        <div className="min-h-0 flex-1">
+          <CodeEditor
+            value={formatBody(response.body, language)}
+            language={language as "json" | "html" | "xml" | "text"}
+            readOnly
+            height="100%"
+            className="h-full"
+          />
+        </div>
+      )}
     </div>
   )
 }

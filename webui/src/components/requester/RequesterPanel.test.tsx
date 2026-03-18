@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { ReactNode } from "react"
-import type { HttpRequest } from "./types"
+import type { HttpRequest, HttpResponse } from "./types"
 import { useRequestHistoryStore, type RequestHistoryEntry } from "@/stores/requestHistory"
 import { useTabStateStore } from "@/stores/tabState"
 import { RequesterPanel } from "./RequesterPanel"
@@ -43,7 +43,21 @@ vi.mock("./RequestEditor", () => ({
 }))
 
 vi.mock("./ResponseViewer", () => ({
-  ResponseViewer: () => <div>response-viewer</div>,
+  ResponseViewer: ({
+    response,
+    error,
+    isLoading,
+  }: {
+    response: HttpResponse | null
+    error: string | null
+    isLoading: boolean
+  }) => (
+    <div>
+      <p data-testid="viewer-loading">{isLoading ? "loading" : "idle"}</p>
+      <p data-testid="viewer-error">{error ?? "none"}</p>
+      <p data-testid="viewer-status">{response ? `${response.statusCode}` : "none"}</p>
+    </div>
+  ),
 }))
 
 function createHistoryEntry(overrides: Partial<RequestHistoryEntry> = {}): RequestHistoryEntry {
@@ -55,6 +69,17 @@ function createHistoryEntry(overrides: Partial<RequestHistoryEntry> = {}): Reque
     headers: [{ name: "Content-Type", value: "application/json" }],
     body: '{"key":"value"}',
     ...overrides,
+  }
+}
+
+function createResponse(statusCode: number): HttpResponse {
+  return {
+    statusCode,
+    statusText: "OK",
+    time: 12,
+    size: 128,
+    headers: [{ key: "Content-Type", value: "application/json" }],
+    body: "{}",
   }
 }
 
@@ -111,5 +136,42 @@ describe("RequesterPanel replay flow", () => {
     expect(latestStored.url).toBe("https://example.com/replay")
     expect(latestStored.body).toBe('{"key":"value"}')
     expect(latestStored.headers[0].name).toBe("Content-Type")
+  })
+
+  it("loads saved response when history entry includes one", async () => {
+    const user = userEvent.setup()
+    useRequestHistoryStore.setState({
+      entries: [createHistoryEntry({ id: "with-response", response: createResponse(201) })],
+      maxEntries: 50,
+    })
+
+    render(<RequesterPanel />)
+
+    await user.click(screen.getByRole("button", { name: /https:\/\/example.com\/replay/i }))
+
+    expect(screen.getByTestId("viewer-status")).toHaveTextContent("201")
+  })
+
+  it("clears current response when selecting legacy entry without response", async () => {
+    const user = userEvent.setup()
+    useRequestHistoryStore.setState({
+      entries: [
+        createHistoryEntry({ id: "legacy-entry" }),
+        createHistoryEntry({
+          id: "with-response",
+          url: "https://example.com/with-response",
+          response: createResponse(202),
+        }),
+      ],
+      maxEntries: 50,
+    })
+
+    render(<RequesterPanel />)
+
+    await user.click(screen.getByRole("button", { name: /https:\/\/example.com\/with-response/i }))
+    expect(screen.getByTestId("viewer-status")).toHaveTextContent("202")
+
+    await user.click(screen.getByRole("button", { name: /https:\/\/example.com\/replay/i }))
+    expect(screen.getByTestId("viewer-status")).toHaveTextContent("none")
   })
 })

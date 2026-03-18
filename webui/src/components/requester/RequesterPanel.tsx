@@ -52,6 +52,9 @@ export function RequesterPanel() {
   )
   const historyEntries = useRequestHistoryStore((historyState) => historyState.entries)
   const appendRequest = useRequestHistoryStore((historyState) => historyState.appendRequest)
+  const updateEntryResponse = useRequestHistoryStore(
+    (historyState) => historyState.updateEntryResponse
+  )
 
   const { request, response, error } = state
 
@@ -94,6 +97,8 @@ export function RequesterPanel() {
     }
 
     setRequest(loadedRequest)
+    setResponse(entry.response || null)
+    setError(null)
     setSelectedEntryId(entry.id)
   }
 
@@ -151,17 +156,28 @@ export function RequesterPanel() {
       if (data.sendRequest) {
         // Parse the response from ZAP
         const parsed = parseZapResponse(data.sendRequest)
-        setResponse({
+        const responseData = {
           ...parsed,
           time: Math.round(endTime - startTime),
-        })
+        }
+        setResponse(responseData)
+        updateEntryResponse(recordedEntry.id, responseData)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Request failed")
     } finally {
       setIsLoading(false)
     }
-  }, [request, appendRequest, setSelectedEntryId, setIsLoading, setError, setResponse, setRequest])
+  }, [
+    request,
+    appendRequest,
+    updateEntryResponse,
+    setSelectedEntryId,
+    setIsLoading,
+    setError,
+    setResponse,
+    setRequest,
+  ])
 
   // Global Ctrl/Cmd+Enter handler to work even when focus is inside CodeMirror
   const handleGlobalKeyDown = useCallback(
