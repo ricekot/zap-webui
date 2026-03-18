@@ -4,7 +4,7 @@ import { ResponseViewer } from "./ResponseViewer"
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable"
 import { useTabState } from "@/stores/tabState"
 import { useRequestHistoryStore } from "@/stores/requestHistory"
-import { buildRawRequest, parseZapResponse } from "./requesterUtils"
+import { buildRawRequest, injectAutoHeaders, parseZapResponse } from "./requesterUtils"
 import type { ZapMessage } from "@/lib/api/types"
 import { zapAction } from "@/lib/api"
 import type { HttpRequest, HttpResponse, RequesterState } from "./types"
@@ -76,9 +76,12 @@ export function RequesterPanel() {
     const startTime = performance.now()
 
     try {
+      const finalRequest = injectAutoHeaders(request)
+      setRequest(finalRequest)
+
       let rawRequest: string
       try {
-        rawRequest = buildRawRequest(request)
+        rawRequest = buildRawRequest(finalRequest)
       } catch (err) {
         setError(
           err instanceof Error
@@ -88,7 +91,7 @@ export function RequesterPanel() {
         return
       }
 
-      const recordedEntry = appendRequest(request)
+      const recordedEntry = appendRequest(finalRequest)
       setSelectedEntryId(recordedEntry.id)
 
       // Use ZAP's sendRequest API via the centralized API client

@@ -4,6 +4,38 @@ import type { ZapMessage } from "@/lib/api/types"
 export type { ZapMessage }
 
 /**
+ * Injects automatic headers like Content-Type and Content-Length into the request.
+ */
+export function injectAutoHeaders(request: HttpRequest): HttpRequest {
+  const newRequest = { ...request, headers: [...request.headers] }
+  const hasBody = newRequest.body && ["POST", "PUT", "PATCH"].includes(newRequest.method)
+
+  if (hasBody) {
+    const hasContentType = newRequest.headers.some((h) => h.key.toLowerCase() === "content-type")
+    if (!hasContentType) {
+      newRequest.headers.push({ key: "Content-Type", value: "application/json", enabled: true })
+    }
+
+    const bodyBytes = new TextEncoder().encode(newRequest.body).length
+    const contentLengthIndex = newRequest.headers.findIndex(
+      (h) => h.key.toLowerCase() === "content-length"
+    )
+
+    if (contentLengthIndex === -1) {
+      newRequest.headers.push({ key: "Content-Length", value: String(bodyBytes), enabled: true })
+    } else {
+      // Update existing Content-Length in case the body changed since last send
+      newRequest.headers[contentLengthIndex] = {
+        ...newRequest.headers[contentLengthIndex],
+        value: String(bodyBytes),
+      }
+    }
+  }
+
+  return newRequest
+}
+
+/**
  * Builds a raw HTTP request string from the HttpRequest object
  * Format: METHOD URL HTTP/1.1\r\nHeaders\r\n\r\nBody
  */
@@ -15,24 +47,9 @@ export function buildRawRequest(request: HttpRequest): string {
   const headerLines = enabledHeaders.map((h) => `${h.key}: ${h.value}`).join("\r\n")
 
   const hostHeader = `Host: ${url.host}`
-  let allHeaders = headerLines ? `${hostHeader}\r\n${headerLines}` : hostHeader
+  const allHeaders = headerLines ? `${hostHeader}\r\n${headerLines}` : hostHeader
 
   const hasBody = request.body && ["POST", "PUT", "PATCH"].includes(request.method)
-
-  // Auto-add Content-Type if the request has a body and no Content-Type header is set
-  if (hasBody) {
-    const hasContentType = enabledHeaders.some((h) => h.key.toLowerCase() === "content-type")
-    if (!hasContentType) {
-      allHeaders += "\r\nContent-Type: application/json"
-    }
-
-    // Auto-add Content-Length for the body
-    const bodyBytes = new TextEncoder().encode(request.body).length
-    const hasContentLength = enabledHeaders.some((h) => h.key.toLowerCase() === "content-length")
-    if (!hasContentLength) {
-      allHeaders += `\r\nContent-Length: ${bodyBytes}`
-    }
-  }
 
   // Use full URL (including scheme) so ZAP knows whether to use http or https
   let raw = `${request.method} ${request.url} HTTP/1.1\r\n${allHeaders}\r\n\r\n`
