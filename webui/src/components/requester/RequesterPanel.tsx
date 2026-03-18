@@ -1,49 +1,24 @@
 import { RequestEditor } from "./RequestEditor"
+import { RequestHistorySidebar } from "./RequestHistorySidebar"
 import { ResponseViewer } from "./ResponseViewer"
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable"
 import { useTabState } from "@/stores/tabState"
+import { useRequestHistoryStore } from "@/stores/requestHistory"
 import { buildRawRequest, parseZapResponse } from "./requesterUtils"
 import type { ZapMessage } from "@/lib/api/types"
 import { zapAction } from "@/lib/api"
-
-export interface HttpRequest {
-  method: string
-  url: string
-  headers: Array<{ key: string; value: string; enabled: boolean }>
-  body: string
-}
-
-export interface HttpResponse {
-  statusCode: number
-  statusText: string
-  time: number
-  size: number
-  headers: Array<{ key: string; value: string }>
-  body: string
-}
-
-interface RequesterState {
-  request: HttpRequest
-  response: HttpResponse | null
-  error: string | null
-}
-
-const defaultRequest: HttpRequest = {
-  method: "GET",
-  url: "",
-  headers: [{ key: "", value: "", enabled: true }],
-  body: "",
-}
-
-const defaultState: RequesterState = {
-  request: defaultRequest,
-  response: null,
-  error: null,
-}
+import type { HttpRequest, HttpResponse, RequesterState } from "./types"
+import { defaultRequesterState } from "./types"
 
 export function RequesterPanel() {
-  const [state, setState] = useTabState<RequesterState>("requester", defaultState)
+  const [state, setState] = useTabState<RequesterState>("requester", defaultRequesterState)
   const [isLoading, setIsLoading] = useTabState("requester-loading", false)
+  const [selectedEntryId, setSelectedEntryId] = useTabState<string | null>(
+    "requester-history-selected",
+    null
+  )
+  const historyEntries = useRequestHistoryStore((historyState) => historyState.entries)
+  const appendRequest = useRequestHistoryStore((historyState) => historyState.appendRequest)
 
   const { request, response, error } = state
 
@@ -57,6 +32,27 @@ export function RequesterPanel() {
 
   const setError = (newError: string | null) => {
     setState((prev) => ({ ...prev, error: newError }))
+  }
+
+  const handleHistorySelect = (entryId: string) => {
+    const entry = historyEntries.find((historyEntry) => historyEntry.id === entryId)
+    if (!entry) {
+      return
+    }
+
+    const loadedRequest: HttpRequest = {
+      method: entry.method,
+      url: entry.url,
+      headers: entry.headers.map((header) => ({
+        key: header.name,
+        value: header.value,
+        enabled: true,
+      })),
+      body: entry.body,
+    }
+
+    setRequest(loadedRequest)
+    setSelectedEntryId(entry.id)
   }
 
   const handleSend = async () => {
@@ -92,6 +88,9 @@ export function RequesterPanel() {
         return
       }
 
+      const recordedEntry = appendRequest(request)
+      setSelectedEntryId(recordedEntry.id)
+
       // Use ZAP's sendRequest API via the centralized API client
       const data = await zapAction<{ sendRequest: ZapMessage | ZapMessage[] }>(
         "core",
@@ -120,24 +119,33 @@ export function RequesterPanel() {
   }
 
   return (
-    <ResizablePanelGroup
-      orientation="horizontal"
-      className="h-full"
-      id="requester-layout"
-      defaultLayout={{ "request-editor": 50, "response-viewer": 50 }}
-    >
-      <ResizablePanel id="request-editor" defaultSize="50%" minSize="20%">
-        <RequestEditor
-          request={request}
-          onChange={setRequest}
-          onSend={handleSend}
-          isLoading={isLoading}
-        />
-      </ResizablePanel>
-      <ResizableHandle withHandle />
-      <ResizablePanel id="response-viewer" defaultSize="50%" minSize="20%">
-        <ResponseViewer response={response} error={error} isLoading={isLoading} />
-      </ResizablePanel>
-    </ResizablePanelGroup>
+    <div className="flex h-full min-w-0">
+      <RequestHistorySidebar
+        entries={historyEntries}
+        selectedEntryId={selectedEntryId}
+        onSelect={(entry) => handleHistorySelect(entry.id)}
+      />
+      <div className="min-w-0 flex-1">
+        <ResizablePanelGroup
+          orientation="horizontal"
+          className="h-full"
+          id="requester-layout"
+          defaultLayout={{ "request-editor": 50, "response-viewer": 50 }}
+        >
+          <ResizablePanel id="request-editor" defaultSize="50%" minSize="20%">
+            <RequestEditor
+              request={request}
+              onChange={setRequest}
+              onSend={handleSend}
+              isLoading={isLoading}
+            />
+          </ResizablePanel>
+          <ResizableHandle withHandle />
+          <ResizablePanel id="response-viewer" defaultSize="50%" minSize="20%">
+            <ResponseViewer response={response} error={error} isLoading={isLoading} />
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      </div>
+    </div>
   )
 }

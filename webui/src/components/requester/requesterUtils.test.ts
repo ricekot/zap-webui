@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
 import { buildRawRequest, parseZapResponse, type ZapMessage } from "./requesterUtils"
-import type { HttpRequest } from "./RequesterPanel"
+import type { HttpRequest } from "./types"
 
 describe("buildRawRequest", () => {
   it("builds a simple GET request with full URL", () => {

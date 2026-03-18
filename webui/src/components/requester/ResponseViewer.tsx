@@ -2,7 +2,7 @@ import { CodeEditor } from "@/components/editor/CodeEditor"
 import { HeadersDisplay } from "@/components/shared/HeadersDisplay"
 import { Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { HttpResponse } from "./RequesterPanel"
+import type { HttpResponse } from "./types"
 
 interface ResponseViewerProps {
   response: HttpResponse | null
