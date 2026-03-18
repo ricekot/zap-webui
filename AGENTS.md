@@ -144,6 +144,8 @@ Key files:
 ## Active Technologies
 - TypeScript 5.9 (strict mode, ES2022 target) for frontend; Java 17 for backend add-on + React 19, Vite 7, Tailwind CSS 3, shadcn/ui (new-york style), CodeMirror 6 (@uiw/react-codemirror), Zustand 5, TanStack React Query 5 (001-request-editor-viewer)
 - N/A (no persistent storage; session state via Zustand in-memory) (001-request-editor-viewer)
+- TypeScript 5.9 (strict mode, ES2022 target) and Java 17 (unchanged backend) + React 19, Zustand 5, Tailwind CSS 3, shadcn/ui, existing requester utilities (002-request-history-sidebar)
+- Browser local storage via existing frontend state persistence patterns (002-request-history-sidebar)
 
 ## Recent Changes
 - 001-request-editor-viewer: Migrated from npm to bun, replaced Jetty/WebSocket with ExtensionNetwork, stripped frontend to boilerplate, built Postman-like HTTP request editor with 7 methods, URL validation, header management (add/remove/enable/disable), syntax-highlighted response viewer with JSON pretty-printing, status color coding, and keyboard shortcuts (Ctrl/Cmd+Enter to send)

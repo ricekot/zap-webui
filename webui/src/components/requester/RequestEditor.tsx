@@ -10,7 +10,7 @@ import {
 import { CodeEditor } from "@/components/editor/CodeEditor"
 import { ChevronDown, Plus, Trash2, Send, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { HttpRequest } from "./RequesterPanel"
+import type { HttpRequest } from "./types"
 
 const HTTP_METHODS = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]
 const BODY_METHODS = ["POST", "PUT", "PATCH"]

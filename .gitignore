@@ -35,3 +35,17 @@ gradle-app.setting
 webui/node_modules/
 webui/dist/
 webui/.vite/
+
+# Logs and environment files
+*.log
+.env*
+
+# Java build outputs
+target/
+*.class
+
+# Editor/OS noise
+Thumbs.db
+*.tmp
+*.swp
+.vscode/

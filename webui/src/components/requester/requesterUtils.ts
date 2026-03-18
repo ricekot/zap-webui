@@ -1,4 +1,4 @@
-import type { HttpRequest, HttpResponse } from "./RequesterPanel"
+import type { HttpRequest, HttpResponse } from "./types"
 import type { ZapMessage } from "@/lib/api/types"
 
 export type { ZapMessage }
